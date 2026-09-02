@@ -1,0 +1,30 @@
+{
+  "name": "interviewly",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "dev:web": "pnpm --filter ./apps/web dev",
+    "dev:api": "pnpm --filter ./apps/api dev",
+    "build": "pnpm --recursive --filter ./apps/* build",
+    "build:web": "pnpm --filter ./apps/web build",
+    "build:api": "pnpm --filter ./apps/api build",
+    "start": "pnpm --parallel --filter ./apps/* start",
+    "start:web": "pnpm --filter ./apps/web start",
+    "start:api": "pnpm --filter ./apps/api start",
+    "lint": "pnpm --recursive --filter ./apps/* lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.25.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.25.0",
+  "type": "module"
+}
