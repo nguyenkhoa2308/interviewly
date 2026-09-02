@@ -13,6 +13,7 @@ node_modules/
 out/
 dist/
 build/
+apps/api/src/generated/prisma/
 
 # Testing
 coverage/
