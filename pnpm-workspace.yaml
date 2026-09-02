@@ -4,3 +4,6 @@ packages:
 allowBuilds:
   '@parcel/watcher': true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - lucide-react@1.39.0
+  - shadcn@4.20.0
