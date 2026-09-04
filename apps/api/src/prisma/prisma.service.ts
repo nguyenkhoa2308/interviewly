@@ -1,7 +1,7 @@
 import {
-  BeforeApplicationShutdown,
-  Injectable,
-  OnModuleInit,
+    BeforeApplicationShutdown,
+    Injectable,
+    OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -9,22 +9,22 @@ import { PrismaClient } from '../generated/prisma/client';
 
 @Injectable()
 export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, BeforeApplicationShutdown
+    extends PrismaClient
+    implements OnModuleInit, BeforeApplicationShutdown
 {
-  constructor(configService: ConfigService) {
-    const adapter = new PrismaPg({
-      connectionString: configService.getOrThrow<string>('DATABASE_URL'),
-    });
+    constructor(configService: ConfigService) {
+        const adapter = new PrismaPg({
+            connectionString: configService.getOrThrow<string>('DATABASE_URL'),
+        });
 
-    super({ adapter });
-  }
+        super({ adapter });
+    }
 
-  async onModuleInit(): Promise<void> {
-    await this.$connect();
-  }
+    async onModuleInit(): Promise<void> {
+        await this.$connect();
+    }
 
-  async beforeApplicationShutdown(): Promise<void> {
-    await this.$disconnect();
-  }
+    async beforeApplicationShutdown(): Promise<void> {
+        await this.$disconnect();
+    }
 }

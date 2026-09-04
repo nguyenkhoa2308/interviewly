@@ -2,50 +2,56 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule);
 
-  const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') ?? 8000;
-  const frontendUrl = configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    const configService = app.get(ConfigService);
+    const port = configService.get<number>('PORT') ?? 8000;
+    const frontendUrl =
+        configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
 
-  app.enableCors({
-    origin: frontendUrl,
-    credentials: true,
-  });
+    app.use(cookieParser());
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-  }));
+    app.enableCors({
+        origin: frontendUrl,
+        credentials: true,
+    });
 
-  app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalPipes(
+        new ValidationPipe({
+            transform: true,
+            whitelist: true,
+            forbidNonWhitelisted: true,
+        }),
+    );
 
-  app.useGlobalInterceptors(new ResponseInterceptor());
+    app.useGlobalFilters(new HttpExceptionFilter());
 
-  app.setGlobalPrefix('api/v1');
+    app.useGlobalInterceptors(new ResponseInterceptor());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Interviewly API')
-    .setDescription('Interviewly backend API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+    app.setGlobalPrefix('api/v1');
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const swaggerConfig = new DocumentBuilder()
+        .setTitle('Interviewly API')
+        .setDescription('Interviewly backend API documentation')
+        .setVersion('1.0')
+        .addBearerAuth()
+        .build();
 
-  SwaggerModule.setup('api/docs', app, document);
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  const logger = new Logger('Bootstrap');
+    SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(port);
-  logger.log(`API running on http://localhost:${port}`);
-  logger.log(`Docs available at http://localhost:${port}/api/docs`);
+    const logger = new Logger('Bootstrap');
+
+    await app.listen(port);
+    logger.log(`API running on http://localhost:${port}`);
+    logger.log(`Docs available at http://localhost:${port}/api/docs`);
 }
 bootstrap();
