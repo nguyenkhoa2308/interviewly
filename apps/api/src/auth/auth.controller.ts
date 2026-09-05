@@ -14,6 +14,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { clearAuthCookies, setAuthCookies } from './utils/cookie.util';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -113,5 +115,15 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     getMe(@CurrentUser() user: AuthUser) {
         return this.authService.getMe(user.id);
+    }
+
+    @Post('verify-email')
+    verifyEmail(@Body() dto: VerifyEmailDto) {
+        return this.authService.verifyEmail(dto.email, dto.otp);
+    }
+
+    @Post('resend-verification')
+    resendVerification(@Body() dto: ResendVerificationDto) {
+        return this.authService.resendVerification(dto.email);
     }
 }

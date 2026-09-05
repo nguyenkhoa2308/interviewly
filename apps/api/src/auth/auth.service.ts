@@ -1,8 +1,10 @@
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import {
+    BadRequestException,
     ConflictException,
     Injectable,
+    Logger,
     UnauthorizedException,
 } from '@nestjs/common';
 import { StringValue } from 'ms';
@@ -14,6 +16,8 @@ import { LoginDto } from './dto/login.dto';
 import { hashValue, verifyHash } from './utils/hash.util';
 import { calculateTokenExpiration } from './utils/token.util';
 import { AUTH_ERROR_CODE } from './constants/auth-error-code.constant';
+import { generateOtp, hashOtp, verifyOtp } from '../common/utils/otp.util';
+import { MailService } from '../modules/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +25,10 @@ export class AuthService {
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        private readonly mailService: MailService,
     ) {}
+
+    private readonly logger = new Logger(AuthService.name);
 
     private async generateTokens(
         user: {
@@ -104,6 +111,24 @@ export class AuthService {
         };
     }
 
+    private async createEmailVerification(userId: string) {
+        const otp = generateOtp();
+        const otpHash = await hashOtp(otp);
+
+        const verification = await this.prisma.emailVerification.create({
+            data: {
+                userId,
+                codeHash: otpHash,
+                expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+            },
+        });
+
+        return {
+            otp,
+            verification,
+        };
+    }
+
     async register(dto: RegisterDto) {
         const email = dto.email.trim().toLowerCase();
 
@@ -137,6 +162,17 @@ export class AuthService {
                 createdAt: true,
             },
         });
+
+        const { otp } = await this.createEmailVerification(user.id);
+
+        try {
+            await this.mailService.sendVerificationOtp(user.email, otp);
+        } catch (error) {
+            this.logger.error(
+                `Failed to send verification email to ${user.email}`,
+                error,
+            );
+        }
 
         return user;
     }
@@ -350,5 +386,179 @@ export class AuthService {
         }
 
         return user;
+    }
+
+    async verifyEmail(email: string, otp: string) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.prisma.user.findUnique({
+            where: { email: normalizedEmail },
+        });
+
+        if (!user) {
+            throw new BadRequestException({
+                code: 'INVALID_VERIFICATION_CODE',
+                message: 'Mã xác minh không hợp lệ.',
+            });
+        }
+
+        if (user.emailVerifiedAt) {
+            throw new BadRequestException({
+                code: 'EMAIL_ALREADY_VERIFIED',
+                message: 'Địa chỉ email đã được xác minh.',
+            });
+        }
+
+        const verification = await this.prisma.emailVerification.findFirst({
+            where: {
+                userId: user.id,
+                usedAt: null,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        if (!verification) {
+            throw new BadRequestException({
+                code: 'INVALID_VERIFICATION_CODE',
+                message: 'Mã xác minh không hợp lệ.',
+            });
+        }
+
+        if (verification.expiresAt <= new Date()) {
+            throw new BadRequestException({
+                code: 'VERIFICATION_CODE_EXPIRED',
+                message: 'Mã xác minh đã hết hạn. Vui lòng yêu cầu mã mới.',
+            });
+        }
+
+        if (verification.attempts >= 5) {
+            throw new BadRequestException({
+                code: 'VERIFICATION_ATTEMPTS_EXCEEDED',
+                message:
+                    'Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.',
+            });
+        }
+
+        const isValid = await verifyOtp(verification.codeHash, otp);
+
+        if (!isValid) {
+            const updatedVerification =
+                await this.prisma.emailVerification.update({
+                    where: {
+                        id: verification.id,
+                    },
+                    data: {
+                        attempts: {
+                            increment: 1,
+                        },
+                    },
+                });
+
+            if (updatedVerification.attempts >= 5) {
+                throw new BadRequestException({
+                    code: 'VERIFICATION_ATTEMPTS_EXCEEDED',
+                    message:
+                        'Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.',
+                });
+            }
+
+            throw new BadRequestException({
+                code: 'INVALID_VERIFICATION_CODE',
+                message: 'Mã xác minh không chính xác.',
+            });
+        }
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    emailVerifiedAt: new Date(),
+                },
+            }),
+
+            this.prisma.emailVerification.update({
+                where: { id: verification.id },
+                data: {
+                    usedAt: new Date(),
+                },
+            }),
+        ]);
+
+        return {
+            message: 'Xác minh email thành công.',
+        };
+    }
+
+    async resendVerification(email: string) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.prisma.user.findUnique({
+            where: { email: normalizedEmail },
+        });
+
+        if (!user) {
+            throw new BadRequestException({
+                code: 'USER_NOT_FOUND',
+                message: 'Không tìm thấy tài khoản với địa chỉ email này.',
+            });
+        }
+
+        if (user.emailVerifiedAt) {
+            throw new BadRequestException({
+                code: 'EMAIL_ALREADY_VERIFIED',
+                message: 'Địa chỉ email đã được xác minh.',
+            });
+        }
+
+        const latestVerification =
+            await this.prisma.emailVerification.findFirst({
+                where: {
+                    userId: user.id,
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+
+        if (latestVerification) {
+            const resendAvailableAt =
+                latestVerification.createdAt.getTime() + 60 * 1000;
+
+            const remainingMs = resendAvailableAt - Date.now();
+
+            if (remainingMs > 0) {
+                throw new BadRequestException({
+                    code: 'VERIFICATION_RESEND_TOO_SOON',
+                    message: `Vui lòng chờ ${Math.ceil(remainingMs / 1000)} giây trước khi gửi lại mã.`,
+                });
+            }
+        }
+
+        await this.prisma.emailVerification.updateMany({
+            where: {
+                userId: user.id,
+                usedAt: null,
+            },
+            data: {
+                usedAt: new Date(),
+            },
+        });
+
+        const { otp } = await this.createEmailVerification(user.id);
+
+        try {
+            await this.mailService.sendVerificationOtp(user.email, otp);
+        } catch (error) {
+            this.logger.error(
+                `Failed to resend verification email to ${user.email}`,
+                error,
+            );
+        }
+
+        return {
+            message: 'Mã xác minh mới đã được gửi.',
+        };
     }
 }

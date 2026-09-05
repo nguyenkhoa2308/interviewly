@@ -65,18 +65,14 @@ export function SignInForm() {
                             return;
 
                         case 'EMAIL_NOT_VERIFIED':
-                            toast.warning('Tài khoản chưa kích hoạt', {
+                            toast.warning('Email chưa được xác minh', {
                                 description:
-                                    apiError?.message ||
-                                    'Vui lòng kiểm tra email để xác thực tài khoản.',
-                                action: {
-                                    label: 'Xác thực ngay',
-                                    onClick: () =>
-                                        router.push(
-                                            `/verify-email?email=${encodeURIComponent(values.email)}`,
-                                        ),
-                                },
+                                    'Vui lòng xác minh email trước khi đăng nhập.',
                             });
+
+                            router.replace(
+                                `/verify-email?email=${encodeURIComponent(values.email)}`,
+                            );
                             return;
 
                         case 'ACCOUNT_INACTIVE':
@@ -106,7 +102,7 @@ export function SignInForm() {
     };
 
     return (
-        <div className="space-y-5">
+        <div className="w-full space-y-5">
             <Button
                 type="button"
                 variant="outline"

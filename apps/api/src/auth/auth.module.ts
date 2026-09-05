@@ -7,8 +7,8 @@ import type { StringValue } from 'ms';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { MailModule } from '../modules/mail/mail.module';
 
 @Module({
     imports: [
@@ -26,6 +26,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
                 },
             }),
         }),
+        MailModule,
     ],
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy, JwtAuthGuard],

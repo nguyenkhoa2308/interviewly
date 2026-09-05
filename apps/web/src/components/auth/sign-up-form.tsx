@@ -8,7 +8,6 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 import { signUpSchema, type SignUpFormValues } from '@/schemas/auth.schema';
-import { authService } from '@/services/auth.service';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,8 @@ import { useRegister } from '@/hooks/auth/use-register';
 import Link from 'next/link';
 
 export function SignUpForm() {
+    const router = useRouter();
+
     const {
         register,
         handleSubmit,
@@ -45,10 +46,13 @@ export function SignUpForm() {
         mutate(registerData, {
             onSuccess: () => {
                 toast.success('Đăng ký thành công!', {
-                    description: 'Tài khoản của bạn đã được tạo thành công.',
+                    description:
+                        'Vui lòng kiểm tra email để xác thực tài khoản.',
                 });
 
-                useRouter().replace('/sign-in');
+                router.replace(
+                    `/verify-email?email=${encodeURIComponent(registerData.email)}`,
+                );
             },
 
             onError: (error) => {
@@ -74,7 +78,7 @@ export function SignUpForm() {
     };
 
     return (
-        <div className="space-y-5">
+        <div className="w-full space-y-5">
             <Button
                 type="button"
                 variant="outline"

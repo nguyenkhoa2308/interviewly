@@ -30,7 +30,7 @@ export default function SignInPage() {
     return (
         <AuthShell
             sidebar={
-                <div className="flex h-full flex-col p-10 pb-20">
+                <div className="flex h-full flex-col p-10 sm:pl-10 xl:pb-20 xl:pl-20">
                     <Logo variant="default" className="w-50" />
 
                     <div className="my-auto">
@@ -43,8 +43,8 @@ export default function SignInPage() {
                         </h1>
 
                         <p className="text-muted-foreground mt-4 font-semibold">
-                            Đăng nhập vào Interviewly để tiếp tục các buổi luyện tập
-                            phỏng vấn và theo dõi sự tiến bộ của bạn.
+                            Đăng nhập vào Interviewly để tiếp tục các buổi luyện
+                            tập phỏng vấn và theo dõi sự tiến bộ của bạn.
                         </p>
 
                         <div className="mt-8 mt-15 w-2/3 space-y-10">
@@ -84,14 +84,15 @@ export default function SignInPage() {
                 </div>
             }
         >
-            <div className="bg-card h-full w-full max-w-4xl rounded-xl px-16 py-20 shadow-2xl lg:h-auto">
+            <div className="bg-card flex h-full w-full flex-col items-start justify-center rounded-xl p-8 shadow-2xl sm:p-12 lg:block lg:h-auto lg:max-w-2xl lg:px-16 lg:py-20">
                 {/* Heading khu vực form */}
                 <div className="mb-8">
                     <h2 className="text-2xl font-extrabold tracking-tight">
                         Đăng nhập
                     </h2>
                     <p className="text-muted-foreground mt-2 text-sm font-semibold">
-                        Nhập thông tin xác thực để truy cập vào tài khoản của bạn.
+                        Nhập thông tin xác thực để truy cập vào tài khoản của
+                        bạn.
                     </p>
                 </div>
 

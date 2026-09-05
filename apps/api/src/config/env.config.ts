@@ -10,6 +10,13 @@ const envSchema = z.object({
 
     JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
     JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
+    MAIL_HOST: z.string().min(1),
+    MAIL_PORT: z.coerce.number(),
+    MAIL_SECURE: z.coerce.boolean(),
+    MAIL_USER: z.string().email(),
+    MAIL_PASSWORD: z.string().min(1),
+    MAIL_FROM: z.string().min(1),
 });
 
 export function validateEnv(config: Record<string, unknown>) {
