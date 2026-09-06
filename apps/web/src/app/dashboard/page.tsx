@@ -1,22 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
-import { api } from '@/lib/api-client';
 
 export default function DashboardPage() {
-    useEffect(() => {
-        const response = async () => {
-            try {
-                const response = await api.get('/auth/me');
-                console.log(response.data);
-            } catch (error) {
-                console.log(error);
-            }
-        };
-        response();
-    }, []);
-
     return (
         <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
             <h1 className="text-3xl font-extrabold tracking-tight">

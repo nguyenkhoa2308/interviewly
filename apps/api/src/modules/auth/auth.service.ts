@@ -10,14 +10,16 @@ import {
 import { StringValue } from 'ms';
 import { randomUUID } from 'crypto';
 
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { hashValue, verifyHash } from './utils/hash.util';
 import { calculateTokenExpiration } from './utils/token.util';
 import { AUTH_ERROR_CODE } from './constants/auth-error-code.constant';
-import { generateOtp, hashOtp, verifyOtp } from '../common/utils/otp.util';
-import { MailService } from '../modules/mail/mail.service';
+import { generateOtp, hashOtp, verifyOtp } from '../../common/utils/otp.util';
+import { MailService } from '../mail/mail.service';
+import { OAuthProvider } from '../../generated/prisma/enums';
+import { GoogleProfile } from './strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
@@ -559,6 +561,109 @@ export class AuthService {
 
         return {
             message: 'Mã xác minh mới đã được gửi.',
+        };
+    }
+
+    async findOrCreateGoogleUser(profile: GoogleProfile) {
+        // 1. Google account này đã từng liên kết
+        const existingOAuthAccount = await this.prisma.oAuthAccount.findUnique({
+            where: {
+                provider_providerAccountId: {
+                    provider: OAuthProvider.GOOGLE,
+                    providerAccountId: profile.providerId,
+                },
+            },
+            include: {
+                user: true,
+            },
+        });
+
+        if (existingOAuthAccount) {
+            return existingOAuthAccount.user;
+        }
+
+        // 2. Chưa có OAuthAccount → kiểm tra email đã có User chưa
+        const existingUser = await this.prisma.user.findUnique({
+            where: {
+                email: profile.email,
+            },
+        });
+
+        if (existingUser) {
+            if (existingUser.status !== 'ACTIVE') {
+                throw new UnauthorizedException({
+                    code: 'ACCOUNT_INACTIVE',
+                    message: 'Tài khoản đã bị khóa hoặc vô hiệu hóa.',
+                });
+            }
+
+            return this.prisma.$transaction(async (tx) => {
+                await tx.oAuthAccount.create({
+                    data: {
+                        userId: existingUser.id,
+                        provider: OAuthProvider.GOOGLE,
+                        providerAccountId: profile.providerId,
+                    },
+                });
+
+                if (!existingUser.emailVerifiedAt) {
+                    return tx.user.update({
+                        where: {
+                            id: existingUser.id,
+                        },
+                        data: {
+                            emailVerifiedAt: new Date(),
+                        },
+                    });
+                }
+
+                return existingUser;
+            });
+        }
+
+        // 3. User hoàn toàn mới
+        return this.prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    email: profile.email,
+                    fullName: profile.fullName,
+                    avatarUrl: profile.avatarUrl,
+                    emailVerifiedAt: new Date(),
+                    passwordHash: null,
+                },
+            });
+
+            await tx.oAuthAccount.create({
+                data: {
+                    userId: user.id,
+                    provider: OAuthProvider.GOOGLE,
+                    providerAccountId: profile.providerId,
+                },
+            });
+
+            return user;
+        });
+    }
+
+    async googleLogin(
+        profile: GoogleProfile,
+        userAgent?: string,
+        ipAddress?: string,
+    ) {
+        const user = await this.findOrCreateGoogleUser(profile);
+
+        if (user.status !== 'ACTIVE') {
+            throw new UnauthorizedException({
+                code: 'ACCOUNT_INACTIVE',
+                message: 'Tài khoản hiện không thể đăng nhập.',
+            });
+        }
+
+        const session = await this.createSession(user, userAgent, ipAddress);
+
+        return {
+            user,
+            ...session,
         };
     }
 }

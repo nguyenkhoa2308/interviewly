@@ -94,6 +94,39 @@ enum OAuthProvider {
   GOOGLE
 }
 
+enum InterviewGoal {
+  GET_A_JOB
+  IMPROVE_SKILLS
+  CRACK_TOP_COMPANIES
+  SWITCH_CAREER
+  BOOST_INTERVIEW_CONFIDENCE
+  IMPROVE_RESUME
+  PRACTICE_COMMUNICATION
+  OTHER
+}
+
+enum LearningStyle {
+  LEARN_BY_DOING
+  LEARN_BY_READING
+  LEARN_BY_WATCHING
+  MIXED
+}
+
+enum ContentPreference {
+  DATA_STRUCTURES_ALGORITHMS
+  SYSTEM_DESIGN
+  FRONTEND_FRAMEWORKS
+  BEHAVIORAL_QUESTIONS
+  CODING_CHALLENGES
+  RESUME_PORTFOLIO
+}
+
+enum FeedbackDetail {
+  CONCISE
+  STANDARD
+  DETAILED
+}
+
 model User {
   id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String     @unique @db.VarChar(255)
@@ -179,14 +212,24 @@ model PasswordResetToken {
 model UserPreference {
   id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId               String            @unique @map("user_id") @db.Uuid
+
   targetRole           String?           @map("target_role") @db.VarChar(100)
   experienceLevel      ExperienceLevel?  @map("experience_level")
-  yearsOfExperience    Decimal?          @map("years_of_experience") @db.Decimal(4, 1)
+  yearsOfExperience Decimal? @map("years_of_experience") @db.Decimal(4, 1)
+
+  interviewGoals       InterviewGoal[]     @default([]) @map("interview_goals")
+  customInterviewGoal  String?             @map("custom_interview_goal") @db.VarChar(255)
+
+  learningStyle        LearningStyle?      @map("learning_style")
+  contentPreferences ContentPreference[] @default([]) @map("content_preferences")
+  sessionLength        Int?                @map("session_length")
+  defaultDifficulty    Difficulty?         @map("default_difficulty")
+  feedbackDetail       FeedbackDetail?     @map("feedback_detail")
+
   preferredLanguage    Language          @default(VI) @map("preferred_language")
   defaultInterviewType InterviewType?    @map("default_interview_type")
-  defaultDifficulty    Difficulty?       @map("default_difficulty")
   interviewerStyle     InterviewerStyle? @map("interviewer_style")
-  interviewGoals       Json?             @map("interview_goals") @db.JsonB
+
   createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

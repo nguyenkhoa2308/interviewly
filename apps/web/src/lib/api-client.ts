@@ -14,6 +14,7 @@ const api = axios.create({
 
 // Biến quản lý trạng thái refresh token để tránh gọi nhiều request refresh đồng thời
 let isRefreshing = false;
+let isRedirectingToSignIn = false;
 let failedQueue: Array<{
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
@@ -75,13 +76,16 @@ api.interceptors.response.use(
                 processQueue(refreshError as AxiosError);
 
                 // Nếu refresh thất bại (hết hạn refresh_token), chuyển hướng về sign-in nếu đang ở client
-                if (typeof window !== 'undefined') {
+                if (typeof window !== 'undefined' && !isRedirectingToSignIn) {
                     const currentPath = window.location.pathname;
                     if (
                         !currentPath.startsWith('/sign-in') &&
                         !currentPath.startsWith('/sign-up')
                     ) {
-                        window.location.href = `/sign-in?redirect=${encodeURIComponent(currentPath)}`;
+                        isRedirectingToSignIn = true;
+                        window.location.replace(
+                            `/sign-in?redirect=${encodeURIComponent(currentPath)}`,
+                        );
                     }
                 }
 

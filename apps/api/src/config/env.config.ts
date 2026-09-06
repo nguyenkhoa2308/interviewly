@@ -17,6 +17,10 @@ const envSchema = z.object({
     MAIL_USER: z.string().email(),
     MAIL_PASSWORD: z.string().min(1),
     MAIL_FROM: z.string().min(1),
+
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
+    GOOGLE_CALLBACK_URL: z.string().url(),
 });
 
 export function validateEnv(config: Record<string, unknown>) {

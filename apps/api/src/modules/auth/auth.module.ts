@@ -8,7 +8,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { MailModule } from '../modules/mail/mail.module';
+import { MailModule } from '../mail/mail.module';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { GoogleAuthExceptionFilter } from './filters/google-auth-exception.filter';
 
 @Module({
     imports: [
@@ -29,7 +31,13 @@ import { MailModule } from '../modules/mail/mail.module';
         MailModule,
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtStrategy, JwtAuthGuard],
+    providers: [
+        AuthService,
+        JwtStrategy,
+        JwtAuthGuard,
+        GoogleStrategy,
+        GoogleAuthExceptionFilter,
+    ],
     exports: [AuthService, JwtAuthGuard, PassportModule],
 })
 export class AuthModule {}
