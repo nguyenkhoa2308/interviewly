@@ -1,9 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 import { authKeys } from '@/hooks/auth/use-me';
+import { getSafePostAuthRedirect } from '@/lib/auth-redirect';
+import { markAuthenticatedSession } from '@/lib/auth-session';
 import { getMe } from '@/services/auth.service';
 
 export function useAuthRouting() {
@@ -20,20 +22,20 @@ export function useAuthRouting() {
             exact: true,
         });
 
-        const response = await queryClient.fetchQuery({
-            queryKey: authKeys.me,
-            queryFn: getMe,
-            staleTime: 0,
-            retry: false,
-        });
+        const user = await getMe();
+        queryClient.setQueryData(authKeys.me, user);
+        markAuthenticatedSession();
 
+        const safeRedirect = getSafePostAuthRedirect(
+            new URLSearchParams(window.location.search).get('redirect'),
+        );
         router.replace(
-            response.data.onboardingCompletedAt === null
+            user.onboardingCompletedAt === null
                 ? '/onboarding'
-                : '/dashboard',
+                : (safeRedirect ?? '/dashboard'),
         );
 
-        return response.data;
+        return user;
     };
 
     return { routeAuthenticatedUser };

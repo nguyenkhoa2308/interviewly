@@ -8,7 +8,7 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { StringValue } from 'ms';
-import { randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -31,6 +31,45 @@ export class AuthService {
     ) {}
 
     private readonly logger = new Logger(AuthService.name);
+    private readonly passwordResetLifetimeMs = 30 * 60 * 1000;
+
+    private hashResetToken(token: string): string {
+        return createHash('sha256').update(token).digest('hex');
+    }
+
+    private throwResetTokenError(
+        token: {
+            usedAt: Date | null;
+            expiresAt: Date;
+        } | null,
+    ): never {
+        if (!token) {
+            throw new BadRequestException({
+                code: AUTH_ERROR_CODE.INVALID_RESET_TOKEN,
+                message: 'Liên kết đặt lại mật khẩu không hợp lệ.',
+            });
+        }
+
+        if (token.usedAt) {
+            throw new BadRequestException({
+                code: AUTH_ERROR_CODE.RESET_TOKEN_USED,
+                message: 'Liên kết đặt lại mật khẩu này đã được sử dụng.',
+            });
+        }
+
+        if (token.expiresAt <= new Date()) {
+            throw new BadRequestException({
+                code: AUTH_ERROR_CODE.RESET_TOKEN_EXPIRED,
+                message:
+                    'Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu liên kết mới.',
+            });
+        }
+
+        throw new BadRequestException({
+            code: AUTH_ERROR_CODE.INVALID_RESET_TOKEN,
+            message: 'Liên kết đặt lại mật khẩu không hợp lệ.',
+        });
+    }
 
     private async generateTokens(
         user: {
@@ -360,6 +399,146 @@ export class AuthService {
         } catch {
             return;
         }
+    }
+
+    async forgotPassword(email: string) {
+        const publicResult = {
+            message:
+                'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu.',
+        };
+        const normalizedEmail = email.trim().toLowerCase();
+        const user = await this.prisma.user.findFirst({
+            where: { email: normalizedEmail, deletedAt: null },
+            select: { id: true, email: true },
+        });
+
+        if (!user) {
+            return publicResult;
+        }
+
+        const now = new Date();
+        const rawToken = randomBytes(32).toString('hex');
+        const tokenHash = this.hashResetToken(rawToken);
+
+        await this.prisma.$transaction([
+            this.prisma.passwordResetToken.updateMany({
+                where: {
+                    userId: user.id,
+                    usedAt: null,
+                    expiresAt: { gt: now },
+                },
+                data: { usedAt: now },
+            }),
+            this.prisma.passwordResetToken.create({
+                data: {
+                    userId: user.id,
+                    tokenHash,
+                    expiresAt: new Date(
+                        now.getTime() + this.passwordResetLifetimeMs,
+                    ),
+                },
+            }),
+        ]);
+
+        const frontendUrl = this.configService
+            .getOrThrow<string>('FRONTEND_URL')
+            .replace(/\/$/, '');
+        const resetUrl =
+            frontendUrl +
+            '/reset-password?token=' +
+            encodeURIComponent(rawToken);
+
+        try {
+            await this.mailService.sendPasswordReset(user.email, resetUrl);
+        } catch (error) {
+            this.logger.error(
+                'Failed to send password reset email to ' + user.email,
+                error,
+            );
+        }
+
+        return publicResult;
+    }
+
+    async validateResetToken(rawToken: string) {
+        const token = await this.prisma.passwordResetToken.findUnique({
+            where: { tokenHash: this.hashResetToken(rawToken) },
+            select: { expiresAt: true, usedAt: true },
+        });
+
+        if (!token || token.usedAt || token.expiresAt <= new Date()) {
+            this.throwResetTokenError(token);
+        }
+
+        return { valid: true };
+    }
+
+    async resetPassword(rawToken: string, password: string) {
+        const tokenHash = this.hashResetToken(rawToken);
+        const existingToken = await this.prisma.passwordResetToken.findUnique({
+            where: { tokenHash },
+            select: { expiresAt: true, usedAt: true },
+        });
+
+        if (
+            !existingToken ||
+            existingToken.usedAt ||
+            existingToken.expiresAt <= new Date()
+        ) {
+            this.throwResetTokenError(existingToken);
+        }
+
+        const passwordHash = await hashValue(password);
+
+        await this.prisma.$transaction(async (tx) => {
+            const token = await tx.passwordResetToken.findUnique({
+                where: { tokenHash },
+                select: {
+                    id: true,
+                    userId: true,
+                    expiresAt: true,
+                    usedAt: true,
+                },
+            });
+
+            if (!token || token.usedAt || token.expiresAt <= new Date()) {
+                this.throwResetTokenError(token);
+            }
+
+            const now = new Date();
+            const consumed = await tx.passwordResetToken.updateMany({
+                where: {
+                    id: token.id,
+                    usedAt: null,
+                    expiresAt: { gt: now },
+                },
+                data: { usedAt: now },
+            });
+
+            if (consumed.count !== 1) {
+                throw new BadRequestException({
+                    code: AUTH_ERROR_CODE.RESET_TOKEN_USED,
+                    message: 'Liên kết đặt lại mật khẩu này đã được sử dụng.',
+                });
+            }
+
+            await tx.user.update({
+                where: { id: token.userId },
+                data: { passwordHash },
+            });
+            await tx.passwordResetToken.updateMany({
+                where: { userId: token.userId, usedAt: null },
+                data: { usedAt: now },
+            });
+            await tx.session.updateMany({
+                where: { userId: token.userId, revokedAt: null },
+                data: { revokedAt: now },
+            });
+        });
+
+        return {
+            message: 'Mật khẩu của bạn đã được đặt lại thành công.',
+        };
     }
 
     async getMe(userId: string) {

@@ -21,8 +21,10 @@ import { Logo } from '@/components/common/logo';
 import { ErrorState } from '@/components/common/error-state';
 import { useOnboarding } from '@/hooks/onboarding/use-onboarding';
 import { useMe } from '@/hooks/auth/use-me';
-import { useCompleteOnboarding } from '@/hooks/onboarding/use-complete-onboarding';
-import { useSkipOnboarding } from '@/hooks/onboarding/use-skip-onboarding';
+import {
+    useCompleteOnboarding,
+    useSkipOnboarding,
+} from '@/hooks/onboarding/use-onboarding-mutations';
 import {
     onboardingSchema,
     type OnboardingFormValues,
@@ -168,7 +170,7 @@ export function OnboardingWizard() {
     const hasInitialized = useRef(false);
     const shouldPersistDraft = useRef(true);
     const meQuery = useMe();
-    const onboardingQuery = useOnboarding(meQuery.data?.data.id);
+    const onboardingQuery = useOnboarding(meQuery.data?.id);
     const completeMutation = useCompleteOnboarding();
     const skipMutation = useSkipOnboarding();
 
@@ -202,7 +204,7 @@ export function OnboardingWizard() {
         const data = onboardingQuery.data.data;
         const preferences = data.preferences;
         const currentTargetRole = preferences?.targetRole ?? '';
-        const userId = meQuery.data?.data.id ?? 'guest';
+        const userId = meQuery.data?.id ?? 'guest';
         let draft: OnboardingDraft | null = null;
 
         try {
@@ -248,13 +250,13 @@ export function OnboardingWizard() {
         );
         hasInitialized.current = true;
         setIsDraftReady(true);
-    }, [meQuery.data?.data.id, onboardingQuery.data, reset]);
+    }, [meQuery.data?.id, onboardingQuery.data, reset]);
 
     const values = useWatch({ control }) as OnboardingFormValues;
     const isSubmitting = completeMutation.isPending || skipMutation.isPending;
 
     useEffect(() => {
-        const userId = meQuery.data?.data.id;
+        const userId = meQuery.data?.id;
         if (!userId || !isDraftReady || !shouldPersistDraft.current) return;
 
         const draft: OnboardingDraft = { currentStep, values };
@@ -263,11 +265,11 @@ export function OnboardingWizard() {
         } catch {
             // Không làm gián đoạn onboarding nếu trình duyệt chặn storage.
         }
-    }, [currentStep, isDraftReady, meQuery.data?.data.id, values]);
+    }, [currentStep, isDraftReady, meQuery.data?.id, values]);
 
     const clearDraft = () => {
         shouldPersistDraft.current = false;
-        const userId = meQuery.data?.data.id;
+        const userId = meQuery.data?.id;
         if (userId) localStorage.removeItem(getDraftKey(userId));
     };
 
@@ -337,6 +339,8 @@ export function OnboardingWizard() {
         });
     };
 
+    // handleSubmit invokes this callback from a form event, never during render.
+    // eslint-disable-next-line react-hooks/refs
     const submitOnboarding = handleSubmit(async (formValues) => {
         const payload: CompleteOnboardingRequest = {
             ...formValues,

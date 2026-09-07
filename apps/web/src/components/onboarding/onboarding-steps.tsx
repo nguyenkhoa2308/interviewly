@@ -51,7 +51,7 @@ import type {
     ContentPreference,
     InterviewGoal,
 } from '@/services/onboarding.service';
-import { Field, ReviewItem, ReviewSection } from './onboarding-fields';
+import { Field } from './onboarding-fields';
 import {
     contentOptions,
     experienceOptions,

@@ -13,8 +13,10 @@ import {
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
-import { useVerifyEmail } from '@/hooks/auth/use-verify-email';
-import { useResendVerification } from '@/hooks/auth/use-resend-verification';
+import {
+    useResendVerification,
+    useVerifyEmail,
+} from '@/hooks/auth/use-auth-mutations';
 
 // Hạn sử dụng mã OTP (10 phút) & thời gian chờ gửi lại (60s)
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
@@ -40,6 +42,8 @@ export function VerifyEmailForm() {
 
     // 1. Khởi tạo mốc thời gian sau khi component mount trên client (tránh Hydration mismatch)
     useEffect(() => {
+        // Mount state intentionally gates browser-only sessionStorage values.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMounted(true);
 
         const now = Date.now();
@@ -51,14 +55,20 @@ export function VerifyEmailForm() {
             if (savedExpire) {
                 targetExpire = Number(savedExpire);
             } else {
-                sessionStorage.setItem(`otp_expire_${email}`, targetExpire.toString());
+                sessionStorage.setItem(
+                    `otp_expire_${email}`,
+                    targetExpire.toString(),
+                );
             }
 
             const savedResend = sessionStorage.getItem(`otp_resend_${email}`);
             if (savedResend) {
                 targetResend = Number(savedResend);
             } else {
-                sessionStorage.setItem(`otp_resend_${email}`, targetResend.toString());
+                sessionStorage.setItem(
+                    `otp_resend_${email}`,
+                    targetResend.toString(),
+                );
             }
         }
 
@@ -67,8 +77,12 @@ export function VerifyEmailForm() {
 
         const update = () => {
             const current = Date.now();
-            setExpireSeconds(Math.max(0, Math.floor((targetExpire - current) / 1000)));
-            setResendCountdown(Math.max(0, Math.floor((targetResend - current) / 1000)));
+            setExpireSeconds(
+                Math.max(0, Math.floor((targetExpire - current) / 1000)),
+            );
+            setResendCountdown(
+                Math.max(0, Math.floor((targetResend - current) / 1000)),
+            );
         };
 
         update();
@@ -84,7 +98,10 @@ export function VerifyEmailForm() {
 
         return () => {
             clearInterval(timer);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
         };
     }, [email]);
 
@@ -94,8 +111,12 @@ export function VerifyEmailForm() {
 
         const update = () => {
             const current = Date.now();
-            setExpireSeconds(Math.max(0, Math.floor((expireTarget - current) / 1000)));
-            setResendCountdown(Math.max(0, Math.floor((resendTarget - current) / 1000)));
+            setExpireSeconds(
+                Math.max(0, Math.floor((expireTarget - current) / 1000)),
+            );
+            setResendCountdown(
+                Math.max(0, Math.floor((resendTarget - current) / 1000)),
+            );
         };
 
         update();
@@ -111,7 +132,10 @@ export function VerifyEmailForm() {
 
         return () => {
             clearInterval(timer);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
         };
     }, [isMounted, expireTarget, resendTarget]);
 
@@ -171,7 +195,10 @@ export function VerifyEmailForm() {
                             setExpireTarget(Date.now());
                             setExpireSeconds(0);
                             if (typeof window !== 'undefined' && email) {
-                                sessionStorage.setItem(`otp_expire_${email}`, Date.now().toString());
+                                sessionStorage.setItem(
+                                    `otp_expire_${email}`,
+                                    Date.now().toString(),
+                                );
                             }
                             setOtp('');
                             return;
@@ -231,8 +258,14 @@ export function VerifyEmailForm() {
                     setResendCountdown(Math.floor(RESEND_COOLDOWN_MS / 1000));
 
                     if (typeof window !== 'undefined' && email) {
-                        sessionStorage.setItem(`otp_expire_${email}`, newExpire.toString());
-                        sessionStorage.setItem(`otp_resend_${email}`, newResend.toString());
+                        sessionStorage.setItem(
+                            `otp_expire_${email}`,
+                            newExpire.toString(),
+                        );
+                        sessionStorage.setItem(
+                            `otp_resend_${email}`,
+                            newResend.toString(),
+                        );
                     }
 
                     setOtp('');
@@ -300,7 +333,7 @@ export function VerifyEmailForm() {
                         {isMounted ? (
                             formatTime(expireSeconds)
                         ) : (
-                            <span className="inline-block h-4 w-10 animate-pulse rounded bg-muted align-middle" />
+                            <span className="bg-muted inline-block h-4 w-10 animate-pulse rounded align-middle" />
                         )}
                     </span>
                 </p>
@@ -329,7 +362,7 @@ export function VerifyEmailForm() {
             {/* Resend button */}
             <div className="flex justify-center">
                 {!isMounted ? (
-                    <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+                    <div className="bg-muted h-5 w-32 animate-pulse rounded" />
                 ) : resendCountdown > 0 ? (
                     <div className="text-primary pointer-events-none flex items-center gap-2 text-sm font-bold select-none">
                         <RotateCw className="h-4 w-4" />

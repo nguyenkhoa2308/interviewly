@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 
+import { Button } from '@/components/ui/button';
+import { useLogout } from '@/hooks/auth/use-logout';
+
 export default function DashboardPage() {
+    const logout = useLogout();
+
     return (
         <div className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
             <h1 className="text-3xl font-extrabold tracking-tight">
@@ -19,6 +24,14 @@ export default function DashboardPage() {
                 >
                     Về trang chủ
                 </Link>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={logout.isPending}
+                    onClick={() => logout.mutate()}
+                >
+                    {logout.isPending ? 'Đang đăng xuất...' : 'Đăng xuất'}
+                </Button>
             </div>
         </div>
     );

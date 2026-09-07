@@ -5,12 +5,17 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface GoogleAuthButtonProps {
     onSuccess?: () => void | Promise<void>;
+    className?: string;
 }
 
-export function GoogleAuthButton({ onSuccess }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({
+    onSuccess,
+    className,
+}: GoogleAuthButtonProps) {
     const popupRef = useRef<Window | null>(null);
     const popupTimerRef = useRef<number | null>(null);
     const hasHandledResultRef = useRef(false);
@@ -132,7 +137,10 @@ export function GoogleAuthButton({ onSuccess }: GoogleAuthButtonProps) {
         <Button
             type="button"
             variant="outline"
-            className="w-full gap-2 !rounded-md bg-white font-bold"
+            className={cn(
+                'w-full gap-2 !rounded-md bg-white font-bold',
+                className,
+            )}
             size="lg"
             disabled={isLoading}
             onClick={handleGoogleAuth}

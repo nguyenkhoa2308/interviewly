@@ -4,7 +4,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
-import { OnboardingRoutingGuard } from '@/components/auth/onboarding-routing-guard';
+import { AuthRouteGuard } from '@/components/auth/auth-route-guard';
 
 const fontSans = Nunito({
     subsets: ['vietnamese', 'latin'],
@@ -40,9 +40,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         >
             <body className="flex min-h-full flex-col font-sans">
                 <QueryProvider>
-                    <OnboardingRoutingGuard>
-                        {children}
-                    </OnboardingRoutingGuard>
+                    <AuthRouteGuard>{children}</AuthRouteGuard>
                     <Toaster position="top-right" />
                 </QueryProvider>
             </body>

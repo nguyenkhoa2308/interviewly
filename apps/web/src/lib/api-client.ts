@@ -4,98 +4,91 @@ import axios, {
     type InternalAxiosRequestConfig,
 } from 'axios';
 
+import { notifySessionExpired } from '@/lib/auth-session';
+
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+    _retry?: boolean;
+}
+
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     withCredentials: true,
 });
 
-// Biến quản lý trạng thái refresh token để tránh gọi nhiều request refresh đồng thời
+const REFRESH_EXCLUDED_ENDPOINTS = [
+    '/auth/refresh',
+    '/auth/login',
+    '/auth/register',
+    '/auth/logout',
+    '/auth/verify-email',
+    '/auth/resend-verification',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/google',
+];
+
 let isRefreshing = false;
-let isRedirectingToSignIn = false;
 let failedQueue: Array<{
-    resolve: (value?: unknown) => void;
-    reject: (reason?: unknown) => void;
+    resolve: () => void;
+    reject: (reason: unknown) => void;
 }> = [];
 
-const processQueue = (error: AxiosError | null = null) => {
-    failedQueue.forEach((promise) => {
-        if (error) {
-            promise.reject(error);
-        } else {
-            promise.resolve();
-        }
-    });
+function processQueue(error?: unknown): void {
+    for (const request of failedQueue) {
+        if (error) request.reject(error);
+        else request.resolve();
+    }
     failedQueue = [];
-};
+}
 
-// Response interceptor: Tự động refresh token khi gặp lỗi 401
+function shouldAttemptRefresh(url: string): boolean {
+    return !REFRESH_EXCLUDED_ENDPOINTS.some((endpoint) =>
+        url.includes(endpoint),
+    );
+}
+
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & {
-            _retry?: boolean;
-        };
-
+        const originalRequest = error.config as
+            RetryableRequestConfig | undefined;
         const status = error.response?.status;
-        const requestUrl = originalRequest?.url || '';
+        const requestUrl = originalRequest?.url ?? '';
 
-        // Không retry nếu chính request refresh hoặc login/logout bị 401
-        const isAuthEndpoint =
-            requestUrl.includes('/auth/refresh') ||
-            requestUrl.includes('/auth/login') ||
-            requestUrl.includes('/auth/register');
-
-        if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
-            if (isRefreshing) {
-                // Nếu đang trong tiến trình refresh, đẩy request này vào hàng đợi
-                return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
-                })
-                    .then(() => api(originalRequest))
-                    .catch((err) => Promise.reject(err));
-            }
-
-            originalRequest._retry = true;
-            isRefreshing = true;
-
-            try {
-                // Gọi API refresh token (cookie refresh_token được tự động gửi kèm với withCredentials: true)
-                await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-                    {},
-                    { withCredentials: true },
-                );
-
-                processQueue(null);
-                // Thực hiện lại request ban đầu với cookie mới
-                return api(originalRequest);
-            } catch (refreshError) {
-                processQueue(refreshError as AxiosError);
-
-                // Nếu refresh thất bại (hết hạn refresh_token), chuyển hướng về sign-in nếu đang ở client
-                if (typeof window !== 'undefined' && !isRedirectingToSignIn) {
-                    const currentPath = window.location.pathname;
-                    if (
-                        !currentPath.startsWith('/sign-in') &&
-                        !currentPath.startsWith('/sign-up')
-                    ) {
-                        isRedirectingToSignIn = true;
-                        window.location.replace(
-                            `/sign-in?redirect=${encodeURIComponent(currentPath)}`,
-                        );
-                    }
-                }
-
-                return Promise.reject(refreshError);
-            } finally {
-                isRefreshing = false;
-            }
+        if (
+            status !== 401 ||
+            !originalRequest ||
+            originalRequest._retry ||
+            !shouldAttemptRefresh(requestUrl)
+        ) {
+            return Promise.reject(error);
         }
 
-        return Promise.reject(error);
+        if (isRefreshing) {
+            return new Promise<void>((resolve, reject) => {
+                failedQueue.push({ resolve, reject });
+            }).then(() => api(originalRequest));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+            await axios.post(
+                `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+                {},
+                { withCredentials: true },
+            );
+            processQueue();
+            return api(originalRequest);
+        } catch (refreshError) {
+            processQueue(refreshError);
+            notifySessionExpired();
+            return Promise.reject(refreshError);
+        } finally {
+            isRefreshing = false;
+        }
     },
 );
 

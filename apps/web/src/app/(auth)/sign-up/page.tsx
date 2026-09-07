@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChartNoAxesColumn, Sparkles, Target, Zap } from 'lucide-react';
+import { ChartNoAxesColumn, Sparkles, Target } from 'lucide-react';
 
 import { Logo } from '@/components/common/logo';
 import { AuthShell } from '@/components/auth/auth-shell';

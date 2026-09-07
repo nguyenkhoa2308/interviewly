@@ -1,11 +1,11 @@
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
 
 interface LoadingStateProps {
     message?: string;
 }
 
 export function LoadingState({
-    message = "Đang tải dữ liệu...",
+    message = 'Đang tải dữ liệu...',
 }: LoadingStateProps) {
     return (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3">

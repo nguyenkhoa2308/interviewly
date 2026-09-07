@@ -7,6 +7,7 @@ import {
     Res,
     UnauthorizedException,
     Get,
+    Query,
     UseGuards,
     UseFilters,
 } from '@nestjs/common';
@@ -24,6 +25,9 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ValidateResetTokenDto } from './dto/validate-reset-token.dto';
 import { clearAuthCookies, setAuthCookies } from './utils/cookie.util';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -214,6 +218,54 @@ export class AuthController {
     })
     resendVerification(@Body() dto: ResendVerificationDto) {
         return this.authService.resendVerification(dto.email);
+    }
+
+    @Post('forgot-password')
+    @ApiOperation({
+        summary: 'Yêu cầu đặt lại mật khẩu',
+        description:
+            'Gửi hướng dẫn đặt lại mật khẩu nếu email tồn tại mà không tiết lộ trạng thái tài khoản.',
+    })
+    @ApiResponse({
+        status: 201,
+        description: 'Yêu cầu đã được tiếp nhận.',
+    })
+    @ApiResponse({ status: 400, description: 'Email không hợp lệ.' })
+    forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto.email);
+    }
+
+    @Get('reset-password/validate')
+    @ApiOperation({
+        summary: 'Kiểm tra liên kết đặt lại mật khẩu',
+        description:
+            'Kiểm tra reset token còn tồn tại, chưa sử dụng và chưa hết hạn.',
+    })
+    @ApiResponse({ status: 200, description: 'Reset token hợp lệ.' })
+    @ApiResponse({
+        status: 400,
+        description: 'Reset token không hợp lệ, hết hạn hoặc đã sử dụng.',
+    })
+    validateResetToken(@Query() dto: ValidateResetTokenDto) {
+        return this.authService.validateResetToken(dto.token);
+    }
+
+    @Post('reset-password')
+    @ApiOperation({
+        summary: 'Đặt lại mật khẩu',
+        description:
+            'Đổi mật khẩu bằng reset token, sử dụng token một lần và thu hồi tất cả phiên đăng nhập.',
+    })
+    @ApiResponse({
+        status: 201,
+        description: 'Đặt lại mật khẩu thành công.',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Dữ liệu hoặc reset token không hợp lệ.',
+    })
+    resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto.token, dto.password);
     }
 
     @Get('google')

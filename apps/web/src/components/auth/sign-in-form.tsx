@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Lock, Mail } from 'lucide-react';
 import axios from 'axios';
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { cn } from '@/lib/utils';
-import { useLogin } from '@/hooks/auth/use-login';
+import { useLogin } from '@/hooks/auth/use-auth-mutations';
 import { GoogleAuthButton } from './google-auth-button';
 import { useGoogleAuthSuccess } from '@/hooks/auth/use-google-auth-success';
 import { useAuthRouting } from '@/hooks/auth/use-auth-routing';
@@ -26,8 +26,7 @@ export function SignInForm() {
         register,
         handleSubmit,
         formState: { errors },
-        setError,
-        watch,
+        control,
     } = useForm<SignInFormValues>({
         resolver: zodResolver(signInSchema),
         defaultValues: {
@@ -41,10 +40,13 @@ export function SignInForm() {
     const { handleGoogleSuccess } = useGoogleAuthSuccess();
     const { routeAuthenticatedUser } = useAuthRouting();
 
-    const password = watch('password');
+    const password = useWatch({ control, name: 'password' });
 
     const onSubmit = (values: SignInFormValues) => {
-        const { rememberMe, ...loginData } = values;
+        const loginData = {
+            email: values.email,
+            password: values.password,
+        };
 
         mutate(loginData, {
             onSuccess: async () => {

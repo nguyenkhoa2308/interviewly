@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Lock, Mail, User } from 'lucide-react';
 import axios from 'axios';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { cn } from '@/lib/utils';
-import { useRegister } from '@/hooks/auth/use-register';
+import { useRegister } from '@/hooks/auth/use-auth-mutations';
 import Link from 'next/link';
 import { GoogleAuthButton } from './google-auth-button';
 import { useGoogleAuthSuccess } from '@/hooks/auth/use-google-auth-success';
@@ -26,8 +26,7 @@ export function SignUpForm() {
         handleSubmit,
         formState: { errors },
         setError,
-        reset,
-        watch,
+        control,
     } = useForm<SignUpFormValues>({
         resolver: zodResolver(signUpSchema),
         defaultValues: {
@@ -41,10 +40,14 @@ export function SignUpForm() {
     const { mutate, isPending } = useRegister();
     const { handleGoogleSuccess } = useGoogleAuthSuccess();
 
-    const password = watch('password');
+    const password = useWatch({ control, name: 'password' });
 
     const onSubmit = (values: SignUpFormValues) => {
-        const { termsAccepted, ...registerData } = values;
+        const registerData = {
+            fullName: values.fullName,
+            email: values.email,
+            password: values.password,
+        };
 
         mutate(registerData, {
             onSuccess: () => {

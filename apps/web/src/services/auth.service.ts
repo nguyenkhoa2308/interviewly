@@ -20,6 +20,29 @@ export interface ResendVerificationRequest {
     email: string;
 }
 
+export interface ForgotPasswordRequest {
+    email: string;
+}
+
+export interface ResetPasswordRequest {
+    token: string;
+    password: string;
+}
+
+export interface MessageResponse {
+    success: true;
+    data: {
+        message: string;
+    };
+}
+
+export interface ValidateResetTokenResponse {
+    success: true;
+    data: {
+        valid: true;
+    };
+}
+
 export interface CurrentUser {
     id: string;
     email: string;
@@ -48,4 +71,20 @@ export const verifyEmail = (data: VerifyEmailRequest) =>
 export const resendVerification = (data: ResendVerificationRequest) =>
     postData('/auth/resend-verification', data);
 
-export const getMe = () => getData<GetMeResponse>('/auth/me');
+export const forgotPassword = (data: ForgotPasswordRequest) =>
+    postData<MessageResponse>('/auth/forgot-password', data);
+
+export const validateResetToken = (token: string) =>
+    getData<ValidateResetTokenResponse>('/auth/reset-password/validate', {
+        params: { token },
+    });
+
+export const resetPassword = (data: ResetPasswordRequest) =>
+    postData<MessageResponse>('/auth/reset-password', data);
+
+export const getMe = async (): Promise<CurrentUser> => {
+    const response = await getData<GetMeResponse>('/auth/me');
+    return response.data;
+};
+
+export const logout = () => postData<MessageResponse>('/auth/logout');
