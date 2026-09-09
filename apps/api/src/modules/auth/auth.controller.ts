@@ -12,12 +12,7 @@ import {
     UseFilters,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-    ApiBearerAuth,
-    ApiOperation,
-    ApiResponse,
-    ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 
@@ -174,11 +169,10 @@ export class AuthController {
 
     @Get('me')
     @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
     @ApiOperation({
         summary: 'Lấy người dùng hiện tại',
         description:
-            'Trả về thông tin tài khoản của người dùng từ access token trong HttpOnly cookie.',
+            'Yêu cầu đăng nhập. Trả về thông tin tài khoản từ access token trong HttpOnly cookie. Hãy gọi POST /auth/login trước khi thử API này trên Swagger.',
     })
     @ApiResponse({
         status: 200,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/common/logo';
 import { ErrorState } from '@/components/common/error-state';
+import { AvatarCropDialog } from '@/components/profile/avatar-crop-dialog';
 import { useOnboarding } from '@/hooks/onboarding/use-onboarding';
 import { useMe } from '@/hooks/auth/use-me';
 import {
@@ -35,6 +36,7 @@ import type {
     InterviewGoal,
 } from '@/services/onboarding.service';
 import { cn } from '@/lib/utils';
+import { uploadAvatar } from '@/services/avatar.service';
 import { experienceOptions, targetRoles } from './onboarding-options';
 import {
     ExperienceStep,
@@ -163,9 +165,22 @@ function getDefaultAvatar(userId: string) {
 export function OnboardingWizard() {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState(0);
+
+    useLayoutEffect(() => {
+        if (!window.matchMedia('(max-width: 1023px)').matches) return;
+
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }, [currentStep]);
     const [usesCustomRole, setUsesCustomRole] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarFileError, setAvatarFileError] = useState<string | null>(null);
+    const [avatarFileToCrop, setAvatarFileToCrop] = useState<File | null>(null);
+    const [croppedAvatarFile, setCroppedAvatarFile] = useState<File | null>(
+        null,
+    );
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    const croppedAvatarPreviewRef = useRef<string | null>(null);
     const [isDraftReady, setIsDraftReady] = useState(false);
     const hasInitialized = useRef(false);
     const shouldPersistDraft = useRef(true);
@@ -253,7 +268,17 @@ export function OnboardingWizard() {
     }, [meQuery.data?.id, onboardingQuery.data, reset]);
 
     const values = useWatch({ control }) as OnboardingFormValues;
-    const isSubmitting = completeMutation.isPending || skipMutation.isPending;
+    const isSubmitting =
+        completeMutation.isPending ||
+        skipMutation.isPending ||
+        isUploadingAvatar;
+
+    useEffect(() => {
+        return () => {
+            const previewUrl = croppedAvatarPreviewRef.current;
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, []);
 
     useEffect(() => {
         const userId = meQuery.data?.id;
@@ -284,17 +309,29 @@ export function OnboardingWizard() {
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                setAvatarPreview(reader.result);
-                setAvatarFileError(null);
-            }
-        };
-        reader.readAsDataURL(file);
+        setAvatarFileError(null);
+        setAvatarFileToCrop(file);
+    };
+
+    const handleCroppedAvatar = (file: File) => {
+        if (croppedAvatarPreviewRef.current) {
+            URL.revokeObjectURL(croppedAvatarPreviewRef.current);
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+        croppedAvatarPreviewRef.current = previewUrl;
+        setCroppedAvatarFile(file);
+        setAvatarPreview(previewUrl);
+        setAvatarFileError(null);
+        setValue('avatarUrl', '', { shouldDirty: true });
     };
 
     const handleAvatarSelect = (avatarUrl: string) => {
+        if (croppedAvatarPreviewRef.current) {
+            URL.revokeObjectURL(croppedAvatarPreviewRef.current);
+            croppedAvatarPreviewRef.current = null;
+        }
+        setCroppedAvatarFile(null);
         setAvatarPreview(avatarUrl);
         setAvatarFileError(null);
         setValue('avatarUrl', avatarUrl, {
@@ -342,15 +379,23 @@ export function OnboardingWizard() {
     // handleSubmit invokes this callback from a form event, never during render.
     // eslint-disable-next-line react-hooks/refs
     const submitOnboarding = handleSubmit(async (formValues) => {
-        const payload: CompleteOnboardingRequest = {
-            ...formValues,
-            avatarUrl: formValues.avatarUrl || undefined,
-            customInterviewGoal: formValues.interviewGoals.includes('OTHER')
-                ? formValues.customInterviewGoal?.trim()
-                : undefined,
-        };
-
         try {
+            let avatarUrl = formValues.avatarUrl || undefined;
+
+            if (croppedAvatarFile) {
+                setIsUploadingAvatar(true);
+                const response = await uploadAvatar(croppedAvatarFile);
+                avatarUrl = response.data.avatarUrl;
+            }
+
+            const payload: CompleteOnboardingRequest = {
+                ...formValues,
+                avatarUrl,
+                customInterviewGoal: formValues.interviewGoals.includes('OTHER')
+                    ? formValues.customInterviewGoal?.trim()
+                    : undefined,
+            };
+
             await completeMutation.mutateAsync(payload);
             clearDraft();
             router.replace('/dashboard');
@@ -362,6 +407,8 @@ export function OnboardingWizard() {
                 error,
                 'Không thể hoàn tất onboarding. Vui lòng thử lại.',
             );
+        } finally {
+            setIsUploadingAvatar(false);
         }
     });
 
@@ -441,7 +488,7 @@ export function OnboardingWizard() {
 
                 <div className="mx-auto w-full max-w-[1600px] px-5 py-4 sm:px-8 lg:py-5 xl:px-14">
                     <div className="mb-5">
-                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">
+                        <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
                             {stepHeadings[currentStep]}{' '}
                             {currentStep === 0 && (
                                 <span aria-hidden="true">👋</span>
@@ -450,7 +497,7 @@ export function OnboardingWizard() {
                                 <span aria-hidden="true">🎉</span>
                             )}
                         </h1>
-                        <p className="text-muted-foreground mt-3 text-base font-semibold">
+                        <p className="text-muted-foreground mt-3 text-[15px] font-semibold">
                             {stepDescriptions[currentStep]}
                         </p>
                     </div>
@@ -603,7 +650,8 @@ export function OnboardingWizard() {
                                             }
                                             className="h-10 min-w-40 !rounded-sm font-bold"
                                         >
-                                            {completeMutation.isPending ? (
+                                            {completeMutation.isPending ||
+                                            isUploadingAvatar ? (
                                                 <Loader2 className="mr-1 animate-spin" />
                                             ) : (
                                                 <Sparkles className="mr-1" />
@@ -617,6 +665,15 @@ export function OnboardingWizard() {
                     </section>
                 </div>
             </div>
+
+            <AvatarCropDialog
+                file={avatarFileToCrop}
+                open={Boolean(avatarFileToCrop)}
+                onOpenChange={(open) => {
+                    if (!open) setAvatarFileToCrop(null);
+                }}
+                onConfirm={handleCroppedAvatar}
+            />
         </main>
     );
 }
@@ -739,7 +796,7 @@ function UserSummary({
     return (
         <div className="hidden items-center gap-3 sm:flex">
             <div
-                className="text-primary flex size-11 items-center justify-center rounded-full bg-violet-100 bg-cover bg-center text-sm font-bold"
+                className="text-primary flex size-11 items-center justify-center rounded-full border bg-violet-100 bg-cover bg-center text-sm font-bold"
                 style={
                     avatarUrl
                         ? { backgroundImage: `url(${avatarUrl})` }
@@ -769,19 +826,21 @@ function OnboardingSkeleton() {
 }
 
 function showMutationError(error: unknown, fallback: string) {
+    toast.error('Đã xảy ra lỗi', {
+        description: getMutationErrorDescription(error, fallback),
+    });
+}
+
+function getMutationErrorDescription(error: unknown, fallback: string) {
     const message = axios.isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error?.message
         : undefined;
-    const description =
-        typeof message === 'string'
-            ? message
-            : Array.isArray(message)
-              ? message.join('. ')
-              : fallback;
 
-    toast.error('Đã xảy ra lỗi', {
-        description,
-    });
+    return typeof message === 'string'
+        ? message
+        : Array.isArray(message)
+          ? message.join('. ')
+          : fallback;
 }
 
 interface ApiErrorResponse {

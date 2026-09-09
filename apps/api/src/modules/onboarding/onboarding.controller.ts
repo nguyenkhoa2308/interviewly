@@ -1,10 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import {
-    ApiBearerAuth,
-    ApiOperation,
-    ApiResponse,
-    ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import type { AuthUser } from '../auth/types/auth-user.type';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,13 +10,14 @@ import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 @ApiTags('Onboarding')
 @Controller('onboarding')
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class OnboardingController {
     constructor(private readonly onboardingService: OnboardingService) {}
 
     @Get()
     @ApiOperation({
-        summary: 'Lấy thông tin onboarding của người dùng hiện tại.',
+        summary: 'Lấy thông tin onboarding',
+        description:
+            'Yêu cầu đăng nhập bằng HttpOnly cookie. Hãy gọi POST /auth/login trước khi thử API này trên Swagger.',
     })
     @ApiResponse({
         status: 200,
@@ -40,7 +36,7 @@ export class OnboardingController {
     @ApiOperation({
         summary: 'Hoàn tất onboarding',
         description:
-            'Lưu thông tin cá nhân và tùy chọn phỏng vấn, sau đó đánh dấu người dùng đã vượt qua onboarding.',
+            'Yêu cầu đăng nhập bằng HttpOnly cookie. Lưu thông tin cá nhân và tùy chọn phỏng vấn, sau đó đánh dấu người dùng đã vượt qua onboarding.',
     })
     @ApiResponse({
         status: 201,
@@ -65,7 +61,7 @@ export class OnboardingController {
     @ApiOperation({
         summary: 'Bỏ qua onboarding',
         description:
-            'Đánh dấu người dùng đã vượt qua onboarding mà không tạo hoặc thay đổi dữ liệu tùy chọn.',
+            'Yêu cầu đăng nhập bằng HttpOnly cookie. Đánh dấu người dùng đã vượt qua onboarding mà không tạo hoặc thay đổi dữ liệu tùy chọn.',
     })
     @ApiResponse({
         status: 201,

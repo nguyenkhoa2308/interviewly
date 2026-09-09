@@ -39,9 +39,21 @@ async function bootstrap() {
 
     const swaggerConfig = new DocumentBuilder()
         .setTitle('Interviewly API')
-        .setDescription('Interviewly backend API documentation')
+        .setDescription(
+            [
+                '## Hướng dẫn kiểm thử API cần đăng nhập',
+                '',
+                'Interviewly xác thực bằng **HttpOnly cookie**, không cần nhập Bearer token.',
+                '',
+                '1. Gọi `POST /api/v1/auth/login` bằng tài khoản hợp lệ.',
+                '2. Backend sẽ tự đặt cookie `access_token` và `refresh_token` cho trình duyệt.',
+                '3. Tiếp tục gọi các API có ghi **Yêu cầu đăng nhập** trong cùng trình duyệt.',
+                '4. Gọi `POST /api/v1/auth/logout` khi muốn xóa cookie và kết thúc phiên.',
+                '',
+                '> Nếu API vẫn trả `401`, hãy đăng nhập lại và kiểm tra Swagger đang được mở đúng host đã nhận cookie (ví dụ `localhost`, không trộn với `127.0.0.1`).',
+            ].join('\n'),
+        )
         .setVersion('1.0')
-        .addBearerAuth()
         .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

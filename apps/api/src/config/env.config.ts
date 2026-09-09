@@ -21,6 +21,13 @@ const envSchema = z.object({
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
     GOOGLE_CALLBACK_URL: z.string().url(),
+
+    R2_ACCOUNT_ID: z.string().min(1),
+    R2_ACCESS_KEY_ID: z.string().min(1),
+    R2_SECRET_ACCESS_KEY: z.string().min(1),
+    R2_BUCKET_NAME: z.string().min(1),
+    R2_ENDPOINT: z.url(),
+    R2_PUBLIC_URL: z.string().url(),
 });
 
 export function validateEnv(config: Record<string, unknown>) {

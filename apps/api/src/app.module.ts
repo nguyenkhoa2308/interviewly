@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
     imports: [
@@ -19,6 +20,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
         PrismaModule,
         AuthModule,
         OnboardingModule,
+        UsersModule,
     ],
     controllers: [AppController],
     providers: [AppService],

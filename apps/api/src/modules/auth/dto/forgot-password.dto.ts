@@ -3,7 +3,10 @@ import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ForgotPasswordDto {
-    @ApiProperty({ example: 'user@example.com' })
+    @ApiProperty({
+        description: 'Email của tài khoản cần đặt lại mật khẩu.',
+        example: 'nguyenkhoa@example.com',
+    })
     @Transform(({ value }: { value: unknown }) =>
         typeof value === 'string' ? value.trim().toLowerCase() : value,
     )

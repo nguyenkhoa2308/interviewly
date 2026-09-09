@@ -5,6 +5,7 @@ const PROTECTED_ROUTES = [
     '/onboarding',
     '/practice',
     '/history',
+    '/profile',
     '/settings',
 ];
 

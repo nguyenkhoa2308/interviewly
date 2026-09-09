@@ -171,6 +171,7 @@ export class CompleteOnboardingDto {
 
     @ApiPropertyOptional({
         enum: Difficulty,
+        example: Difficulty.MEDIUM,
     })
     @IsOptional()
     @IsEnum(Difficulty, {

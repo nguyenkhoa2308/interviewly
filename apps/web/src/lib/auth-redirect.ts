@@ -1,4 +1,10 @@
-const POST_AUTH_ROUTES = ['/dashboard', '/practice', '/history', '/settings'];
+const POST_AUTH_ROUTES = [
+    '/dashboard',
+    '/practice',
+    '/history',
+    '/profile',
+    '/settings',
+];
 
 export function getSafePostAuthRedirect(value: string | null): string | null {
     if (!value || !value.startsWith('/') || value.startsWith('//')) return null;

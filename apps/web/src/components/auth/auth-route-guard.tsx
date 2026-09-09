@@ -16,7 +16,13 @@ import {
     clearObservedSession,
 } from '@/lib/auth-session';
 
-const PROTECTED_ROUTES = ['/dashboard', '/practice', '/history', '/settings'];
+const PROTECTED_ROUTES = [
+    '/dashboard',
+    '/practice',
+    '/history',
+    '/profile',
+    '/settings',
+];
 const GUEST_ROUTES = ['/sign-in', '/sign-up'];
 
 export function AuthRouteGuard({ children }: { children: ReactNode }) {
