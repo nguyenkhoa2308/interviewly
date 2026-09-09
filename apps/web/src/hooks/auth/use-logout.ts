@@ -5,8 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { authKeys } from '@/hooks/auth/use-me';
-import { onboardingKeys } from '@/hooks/onboarding/use-onboarding';
+import { clearAuthenticatedQueries } from '@/lib/auth-query-cache';
 import { clearObservedSession } from '@/lib/auth-session';
 import { logout } from '@/services/auth.service';
 
@@ -16,12 +15,7 @@ export function useLogout() {
 
     const finishLogout = async () => {
         clearObservedSession();
-        await queryClient.cancelQueries({ queryKey: authKeys.all });
-        queryClient.removeQueries({ queryKey: authKeys.all });
-        queryClient.removeQueries({ queryKey: onboardingKeys.all });
-        queryClient.removeQueries({
-            predicate: (query) => query.meta?.requiresAuth === true,
-        });
+        await clearAuthenticatedQueries(queryClient);
         router.replace('/sign-in');
         toast.success('Đăng xuất thành công.');
     };

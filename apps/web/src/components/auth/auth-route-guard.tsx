@@ -8,31 +8,27 @@ import { toast } from 'sonner';
 import { ErrorState } from '@/components/common/error-state';
 import { LoadingState } from '@/components/common/loading-state';
 import { useAuth } from '@/hooks/auth/use-auth';
-import { authKeys } from '@/hooks/auth/use-me';
-import { onboardingKeys } from '@/hooks/onboarding/use-onboarding';
+import { clearAuthenticatedQueries } from '@/lib/auth-query-cache';
+import {
+    GUEST_AUTH_ROUTES,
+    ONBOARDING_ROUTE,
+    PROTECTED_ROUTES,
+    matchesRoute,
+} from '@/lib/auth-routes';
 import { getAuthRouteDestination } from '@/lib/auth-redirect';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     clearObservedSession,
 } from '@/lib/auth-session';
 
-const PROTECTED_ROUTES = [
-    '/dashboard',
-    '/practice',
-    '/history',
-    '/profile',
-    '/settings',
-];
-const GUEST_ROUTES = ['/sign-in', '/sign-up'];
-
 export function AuthRouteGuard({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const queryClient = useQueryClient();
     const sessionToastShown = useRef(false);
-    const isProtected = matches(pathname, PROTECTED_ROUTES);
-    const isGuest = matches(pathname, GUEST_ROUTES);
-    const isOnboarding = matches(pathname, ['/onboarding']);
+    const isProtected = matchesRoute(pathname, PROTECTED_ROUTES);
+    const isGuest = matchesRoute(pathname, GUEST_AUTH_ROUTES);
+    const isOnboarding = matchesRoute(pathname, [ONBOARDING_ROUTE]);
     const shouldCheckAuth = isProtected || isGuest || isOnboarding;
     const auth = useAuth({
         enabled: shouldCheckAuth,
@@ -40,11 +36,9 @@ export function AuthRouteGuard({ children }: { children: ReactNode }) {
     });
 
     useEffect(() => {
-        const handleSessionExpired = () => {
+        const handleSessionExpired = async () => {
             clearObservedSession();
-            void queryClient.cancelQueries({ queryKey: authKeys.all });
-            queryClient.removeQueries({ queryKey: authKeys.all });
-            queryClient.removeQueries({ queryKey: onboardingKeys.all });
+            await clearAuthenticatedQueries(queryClient);
 
             if (!isProtected && !isOnboarding) return;
 
@@ -71,22 +65,30 @@ export function AuthRouteGuard({ children }: { children: ReactNode }) {
             );
     }, [isOnboarding, isProtected, queryClient, router]);
 
-    const redirectDestination = getAuthRouteDestination({
-        pathname,
-        isProtected,
-        isGuest,
-        isOnboarding,
-        isAuthenticated: auth.isAuthenticated,
-        isUnauthenticated: auth.isUnauthenticated,
-        onboardingCompletedAt: auth.user?.onboardingCompletedAt,
-    });
+    const isAuthDecisionPending =
+        auth.isInitializing || (isGuest && auth.isFetching);
+    const redirectDestination = isAuthDecisionPending
+        ? null
+        : getAuthRouteDestination({
+              pathname,
+              isProtected,
+              isGuest,
+              isOnboarding,
+              isAuthenticated: auth.isAuthenticated,
+              isUnauthenticated: auth.isUnauthenticated,
+              onboardingCompletedAt: auth.user?.onboardingCompletedAt,
+          });
+
+    useEffect(() => {
+        if (auth.isAuthenticated) sessionToastShown.current = false;
+    }, [auth.isAuthenticated]);
 
     useEffect(() => {
         if (redirectDestination) router.replace(redirectDestination);
     }, [redirectDestination, router]);
 
     if (!shouldCheckAuth) return children;
-    if (auth.isInitializing || redirectDestination) {
+    if (isAuthDecisionPending || redirectDestination) {
         return <LoadingState message="Đang kiểm tra phiên đăng nhập..." />;
     }
     if (auth.isUnexpectedError && (isProtected || isOnboarding)) {
@@ -100,12 +102,6 @@ export function AuthRouteGuard({ children }: { children: ReactNode }) {
     }
 
     return children;
-}
-
-function matches(pathname: string, routes: string[]): boolean {
-    return routes.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-    );
 }
 
 function currentPath(): string {

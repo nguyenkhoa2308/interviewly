@@ -1,10 +1,4 @@
-const POST_AUTH_ROUTES = [
-    '/dashboard',
-    '/practice',
-    '/history',
-    '/profile',
-    '/settings',
-];
+import { PROTECTED_ROUTES, matchesRoute } from './auth-routes.ts';
 
 export function getSafePostAuthRedirect(value: string | null): string | null {
     if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
@@ -13,10 +7,7 @@ export function getSafePostAuthRedirect(value: string | null): string | null {
         const url = new URL(value, 'http://interviewly.local');
         if (url.origin !== 'http://interviewly.local') return null;
 
-        const isAllowed = POST_AUTH_ROUTES.some(
-            (route) =>
-                url.pathname === route || url.pathname.startsWith(`${route}/`),
-        );
+        const isAllowed = matchesRoute(url.pathname, PROTECTED_ROUTES);
 
         return isAllowed ? `${url.pathname}${url.search}${url.hash}` : null;
     } catch {

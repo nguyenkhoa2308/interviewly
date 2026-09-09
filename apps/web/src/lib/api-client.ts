@@ -28,19 +28,7 @@ const REFRESH_EXCLUDED_ENDPOINTS = [
     '/auth/google',
 ];
 
-let isRefreshing = false;
-let failedQueue: Array<{
-    resolve: () => void;
-    reject: (reason: unknown) => void;
-}> = [];
-
-function processQueue(error?: unknown): void {
-    for (const request of failedQueue) {
-        if (error) request.reject(error);
-        else request.resolve();
-    }
-    failedQueue = [];
-}
+let refreshPromise: Promise<void> | null = null;
 
 function shouldAttemptRefresh(url: string): boolean {
     return !REFRESH_EXCLUDED_ENDPOINTS.some((endpoint) =>
@@ -48,16 +36,36 @@ function shouldAttemptRefresh(url: string): boolean {
     );
 }
 
+function refreshSession(): Promise<void> {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = axios
+        .post(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+            {},
+            { withCredentials: true },
+        )
+        .then(() => undefined)
+        .catch((error: unknown) => {
+            notifySessionExpired();
+            throw error;
+        })
+        .finally(() => {
+            refreshPromise = null;
+        });
+
+    return refreshPromise;
+}
+
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
         const originalRequest = error.config as
             RetryableRequestConfig | undefined;
-        const status = error.response?.status;
         const requestUrl = originalRequest?.url ?? '';
 
         if (
-            status !== 401 ||
+            error.response?.status !== 401 ||
             !originalRequest ||
             originalRequest._retry ||
             !shouldAttemptRefresh(requestUrl)
@@ -65,29 +73,13 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (isRefreshing) {
-            return new Promise<void>((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            }).then(() => api(originalRequest));
-        }
-
         originalRequest._retry = true;
-        isRefreshing = true;
 
         try {
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-                {},
-                { withCredentials: true },
-            );
-            processQueue();
+            await refreshSession();
             return api(originalRequest);
         } catch (refreshError) {
-            processQueue(refreshError);
-            notifySessionExpired();
             return Promise.reject(refreshError);
-        } finally {
-            isRefreshing = false;
         }
     },
 );

@@ -19,8 +19,7 @@ export function useAuth({
         query.isError &&
         axios.isAxiosError(query.error) &&
         query.error.response?.status === 401;
-    const isAuthenticated =
-        Boolean(query.data) && query.isSuccess && !query.isFetching;
+    const isAuthenticated = Boolean(query.data) && query.isSuccess;
 
     useEffect(() => {
         if (isAuthenticated) markAuthenticatedSession();
@@ -31,7 +30,7 @@ export function useAuth({
         user: query.data ?? null,
         isAuthenticated,
         isUnauthenticated,
-        isInitializing: enabled && (query.isPending || query.isFetching),
+        isInitializing: enabled && query.isPending,
         isUnexpectedError: query.isError && !isUnauthenticated,
     };
 }

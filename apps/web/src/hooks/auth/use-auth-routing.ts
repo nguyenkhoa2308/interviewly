@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { authKeys } from '@/hooks/auth/use-me';
+import { clearAuthenticatedQueries } from '@/lib/auth-query-cache';
 import { getSafePostAuthRedirect } from '@/lib/auth-redirect';
 import { markAuthenticatedSession } from '@/lib/auth-session';
 import { getMe } from '@/services/auth.service';
@@ -13,14 +14,7 @@ export function useAuthRouting() {
     const queryClient = useQueryClient();
 
     const routeAuthenticatedUser = async () => {
-        await queryClient.cancelQueries({
-            queryKey: authKeys.me,
-            exact: true,
-        });
-        queryClient.removeQueries({
-            queryKey: authKeys.me,
-            exact: true,
-        });
+        await clearAuthenticatedQueries(queryClient);
 
         const user = await getMe();
         queryClient.setQueryData(authKeys.me, user);

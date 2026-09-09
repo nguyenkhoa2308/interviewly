@@ -1,19 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PROTECTED_ROUTES = [
-    '/dashboard',
-    '/onboarding',
-    '/practice',
-    '/history',
-    '/profile',
-    '/settings',
-];
+import {
+    ONBOARDING_ROUTE,
+    PROTECTED_ROUTES,
+    matchesRoute,
+} from '@/lib/auth-routes';
 
 export function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
-    const isProtectedRoute = PROTECTED_ROUTES.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-    );
+    const isProtectedRoute =
+        matchesRoute(pathname, PROTECTED_ROUTES) ||
+        pathname === ONBOARDING_ROUTE;
 
     if (!isProtectedRoute) return NextResponse.next();
 
