@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const passwordSchema = z
     .string()
     .min(1, 'Vui lòng nhập mật khẩu.')
-    .min(8, 'Mật khẩu cần có ít nhất 8 ký tự');
-// .regex(/[^A-Za-z0-9]/, 'Mật khẩu cần có ít nhất một ký tự đặc biệt.');
+    .min(8, 'Mật khẩu cần có ít nhất 8 ký tự')
+    .regex(/[^A-Za-z0-9]/, 'Mật khẩu cần có ít nhất một ký tự đặc biệt.');
 
 export const signUpSchema = z.object({
     fullName: z.string().trim().min(1, 'Vui lòng nhập họ và tên'),

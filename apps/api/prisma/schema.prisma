@@ -210,28 +210,27 @@ model PasswordResetToken {
 }
 
 model UserPreference {
-  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId               String            @unique @map("user_id") @db.Uuid
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
 
-  targetRole           String?           @map("target_role") @db.VarChar(100)
-  experienceLevel      ExperienceLevel?  @map("experience_level")
-  yearsOfExperience Decimal? @map("years_of_experience") @db.Decimal(4, 1)
+  targetRole        String?          @map("target_role") @db.VarChar(100)
+  experienceLevel   ExperienceLevel? @map("experience_level")
+  yearsOfExperience Decimal?         @map("years_of_experience") @db.Decimal(4, 1)
 
-  interviewGoals       InterviewGoal[]     @default([]) @map("interview_goals")
-  customInterviewGoal  String?             @map("custom_interview_goal") @db.VarChar(255)
+  interviewGoals      InterviewGoal[] @default([]) @map("interview_goals")
+  customInterviewGoal String?         @map("custom_interview_goal") @db.VarChar(255)
 
-  learningStyle        LearningStyle?      @map("learning_style")
+  learningStyle      LearningStyle?      @map("learning_style")
   contentPreferences ContentPreference[] @default([]) @map("content_preferences")
-  sessionLength        Int?                @map("session_length")
-  defaultDifficulty    Difficulty?         @map("default_difficulty")
-  feedbackDetail       FeedbackDetail?     @map("feedback_detail")
+  defaultDifficulty  Difficulty?         @map("default_difficulty")
+  feedbackDetail     FeedbackDetail?     @map("feedback_detail")
 
   preferredLanguage    Language          @default(VI) @map("preferred_language")
   defaultInterviewType InterviewType?    @map("default_interview_type")
   interviewerStyle     InterviewerStyle? @map("interviewer_style")
 
-  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

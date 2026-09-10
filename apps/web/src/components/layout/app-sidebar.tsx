@@ -2,21 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import {
     ArrowRightLeft,
-    BarChart,
     Bookmark,
     BriefcaseBusiness,
     CalendarDays,
     ChartNoAxesColumn,
     CheckCircle,
+    ChevronDown,
     Clock,
     FileText,
     House,
     List,
     Map,
     Settings,
-    TrendingUp,
     X,
     Zap,
 } from 'lucide-react';
@@ -127,6 +127,19 @@ interface AppSidebarProps {
 
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
     const pathname = usePathname();
+    const activeGroup =
+        navigation.find(
+            (group) =>
+                group.label &&
+                group.items.some(
+                    (item) =>
+                        pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`),
+                ),
+        )?.label ?? null;
+    const [expandedGroup, setExpandedGroup] = useState<string | null>(
+        activeGroup,
+    );
 
     return (
         <>
@@ -145,11 +158,11 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             <aside
                 aria-label="Điều hướng chính"
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-violet-100 bg-white transition-transform duration-200 ease-out lg:translate-x-0',
+                    'fixed top-0 left-0 z-50 flex h-[100svh] w-64 touch-pan-y flex-col overflow-x-hidden overflow-y-auto overscroll-contain border-r border-violet-100 bg-white transition-transform duration-200 ease-out [-webkit-overflow-scrolling:touch] lg:bottom-0 lg:h-auto lg:translate-x-0',
                     open ? 'translate-x-0' : '-translate-x-full',
                 )}
             >
-                <div className="flex h-16 shrink-0 items-center justify-between border-b border-violet-100 px-5">
+                <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-violet-100 bg-white px-5 lg:h-16">
                     <Logo width={151} height={38} />
                     <button
                         type="button"
@@ -161,21 +174,70 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-3 py-5">
+                <div className="px-3 pt-1 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] lg:py-5">
                     {/* <p className="px-3 text-xs font-bold tracking-wide text-slate-400 uppercase">
                         Không gian làm việc
                     </p> */}
-                    <nav className="mt-3 space-y-4">
+                    <nav className="mt-1 space-y-1.5 lg:mt-3 lg:space-y-4">
                         {navigation.map((group, index) => {
+                            const groupId = group.label
+                                ? `app-sidebar-${group.label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
+                                : undefined;
+                            const expanded = group.label
+                                ? expandedGroup === group.label
+                                : true;
+
                             return (
                                 <div key={group.label ?? index}>
-                                    {group.label && (
-                                        <p className="mb-3 px-3 text-[13px] font-bold tracking-wide text-slate-400 uppercase">
-                                            {group.label}
-                                        </p>
+                                    {index === navigation.length - 1 && (
+                                        <div
+                                            aria-hidden="true"
+                                            className="mx-3 mb-3 h-px bg-slate-200 lg:mb-4"
+                                        />
                                     )}
 
-                                    <div className={cn('space-y-1')}>
+                                    {group.label && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                aria-expanded={expanded}
+                                                aria-controls={groupId}
+                                                className="focus-visible:ring-primary flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-[7px] text-left text-[13px] font-bold tracking-wide text-slate-400 uppercase hover:bg-slate-50 hover:text-slate-600 focus-visible:ring-2 focus-visible:outline-none lg:hidden"
+                                                onClick={() =>
+                                                    setExpandedGroup(
+                                                        expanded
+                                                            ? null
+                                                            : group.label!,
+                                                    )
+                                                }
+                                            >
+                                                {group.label}
+                                                <ChevronDown
+                                                    className={cn(
+                                                        'size-4 transition-transform duration-200',
+                                                        expanded &&
+                                                            'rotate-180',
+                                                    )}
+                                                />
+                                            </button>
+                                            <p className="mb-3 hidden px-3 text-[13px] font-bold tracking-wide text-slate-400 uppercase lg:block">
+                                                {group.label}
+                                            </p>
+                                        </>
+                                    )}
+
+                                    <div
+                                        id={groupId}
+                                        className={cn(
+                                            'space-y-1',
+                                            group.label &&
+                                                !expanded &&
+                                                'hidden lg:block',
+                                            group.label &&
+                                                expanded &&
+                                                'mt-1 lg:mt-0',
+                                        )}
+                                    >
                                         {group.items.map((item) => {
                                             const Icon = item.icon;
 
@@ -189,15 +251,17 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                                                 <Link
                                                     key={item.href}
                                                     href={item.href}
+                                                    onClick={() => {
+                                                        setExpandedGroup(
+                                                            group.label ?? null,
+                                                        );
+                                                        onClose();
+                                                    }}
                                                     className={cn(
-                                                        'flex items-center gap-3 rounded-lg px-3 py-2',
+                                                        'flex items-center gap-3 rounded-lg px-3 py-[7px] lg:py-2',
                                                         isActive
                                                             ? 'bg-primary/10 text-primary'
                                                             : 'text-slate-700 hover:bg-slate-50',
-                                                        index ===
-                                                            navigation.length -
-                                                                1 &&
-                                                            'border-t border-slate-100 pt-5',
                                                     )}
                                                 >
                                                     <Icon

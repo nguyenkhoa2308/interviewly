@@ -1,4 +1,4 @@
-import { getData, postData } from '@/lib/api-client';
+import { deleteData, getData, patchData, postData } from '@/lib/api-client';
 
 export interface RegisterRequest {
     fullName: string;
@@ -53,11 +53,28 @@ export interface CurrentUser {
     role: 'USER' | 'ADMIN';
     onboardingCompletedAt: string | null;
     createdAt: string;
+    hasPassword: boolean;
+    connectedProviders: Array<'GOOGLE'>;
 }
 
 export interface GetMeResponse {
     success: true;
     data: CurrentUser;
+}
+
+export interface AuthSession {
+    id: string;
+    userAgent: string | null;
+    ipAddress: string | null;
+    createdAt: string;
+    lastUsedAt: string | null;
+    expiresAt: string;
+    isCurrent: boolean;
+}
+
+interface SessionsResponse {
+    success: true;
+    data: AuthSession[];
 }
 
 export const register = (data: RegisterRequest) =>
@@ -88,3 +105,24 @@ export const getMe = async (): Promise<CurrentUser> => {
 };
 
 export const logout = () => postData<MessageResponse>('/auth/logout');
+
+export const changePassword = (data: {
+    currentPassword: string;
+    newPassword: string;
+}) => patchData<MessageResponse>('/auth/password', data);
+
+export const getSessions = async (): Promise<AuthSession[]> => {
+    const response = await getData<SessionsResponse>('/auth/sessions');
+    return response.data;
+};
+
+export const revokeSession = (sessionId: string) =>
+    deleteData<MessageResponse>(`/auth/sessions/${sessionId}`);
+
+export const revokeOtherSessions = () =>
+    deleteData<MessageResponse>('/auth/sessions/others');
+
+export const deleteAccount = (data: {
+    confirmation: 'DELETE';
+    currentPassword: string;
+}) => deleteData<MessageResponse>('/auth/account', { data });

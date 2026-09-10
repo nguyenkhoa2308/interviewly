@@ -8,6 +8,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { UsersModule } from './modules/users/users.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
 
 @Module({
     imports: [
@@ -16,13 +19,17 @@ import { UsersModule } from './modules/users/users.module';
             cache: true,
             validate: validateEnv,
         }),
+        ThrottlerModule.forRoot([
+            { name: 'default', ttl: minutes(1), limit: 120 },
+        ]),
         HealthModule,
         PrismaModule,
         AuthModule,
         OnboardingModule,
         UsersModule,
+        SettingsModule,
     ],
     controllers: [AppController],
-    providers: [AppService],
+    providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

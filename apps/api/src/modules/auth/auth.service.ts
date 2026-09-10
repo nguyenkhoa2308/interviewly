@@ -20,6 +20,8 @@ import { generateOtp, hashOtp, verifyOtp } from '../../common/utils/otp.util';
 import { MailService } from '../mail/mail.service';
 import { OAuthProvider } from '../../generated/prisma/enums';
 import { GoogleProfile } from './strategies/google.strategy';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -82,7 +84,7 @@ export class AuthService {
         const accessToken = await this.jwtService.signAsync(
             {
                 sub: user.id,
-                email: user.email,
+                sid: sessionId,
                 role: user.role,
             },
             {
@@ -97,6 +99,7 @@ export class AuthService {
             {
                 sub: user.id,
                 sid: sessionId,
+                jti: randomUUID(),
             },
             {
                 secret: this.configService.getOrThrow('JWT_REFRESH_SECRET'),
@@ -188,7 +191,7 @@ export class AuthService {
 
         const user = await this.prisma.user.create({
             data: {
-                fullName: dto.fullName,
+                fullName: dto.fullName.trim(),
                 email,
                 passwordHash,
             },
@@ -280,7 +283,7 @@ export class AuthService {
             ipAddress,
         );
 
-        const { passwordHash, ...safeUser } = user;
+        const { passwordHash: _passwordHash, ...safeUser } = user;
 
         return {
             user: safeUser,
@@ -301,7 +304,7 @@ export class AuthService {
                     'JWT_REFRESH_SECRET',
                 ),
             });
-        } catch (error) {
+        } catch {
             throw new UnauthorizedException({
                 code: AUTH_ERROR_CODE.INVALID_SESSION,
                 message: 'Phiên làm việc đã hết hạn hoặc không hợp lệ.',
@@ -317,7 +320,12 @@ export class AuthService {
             },
         });
 
-        if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+        if (
+            !session ||
+            session.userId !== payload.sub ||
+            session.revokedAt ||
+            session.expiresAt <= new Date()
+        ) {
             throw new UnauthorizedException({
                 code: AUTH_ERROR_CODE.INVALID_SESSION,
                 message: 'Phiên làm việc đã hết hạn hoặc không hợp lệ.',
@@ -355,15 +363,26 @@ export class AuthService {
 
         const newRefreshTokenHash = await hashValue(newRefreshToken);
 
-        await this.prisma.session.update({
+        const rotated = await this.prisma.session.updateMany({
             where: {
                 id: session.id,
+                userId: payload.sub,
+                refreshTokenHash: session.refreshTokenHash,
+                revokedAt: null,
+                expiresAt: { gt: new Date() },
             },
             data: {
                 refreshTokenHash: newRefreshTokenHash,
                 lastUsedAt: new Date(),
             },
         });
+
+        if (rotated.count !== 1) {
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODE.INVALID_SESSION,
+                message: 'Phiên làm việc đã hết hạn hoặc không hợp lệ.',
+            });
+        }
 
         return {
             accessToken,
@@ -408,7 +427,11 @@ export class AuthService {
         };
         const normalizedEmail = email.trim().toLowerCase();
         const user = await this.prisma.user.findFirst({
-            where: { email: normalizedEmail, deletedAt: null },
+            where: {
+                email: normalizedEmail,
+                status: 'ACTIVE',
+                deletedAt: null,
+            },
             select: { id: true, email: true },
         });
 
@@ -463,10 +486,20 @@ export class AuthService {
     async validateResetToken(rawToken: string) {
         const token = await this.prisma.passwordResetToken.findUnique({
             where: { tokenHash: this.hashResetToken(rawToken) },
-            select: { expiresAt: true, usedAt: true },
+            select: {
+                expiresAt: true,
+                usedAt: true,
+                user: { select: { status: true, deletedAt: true } },
+            },
         });
 
-        if (!token || token.usedAt || token.expiresAt <= new Date()) {
+        if (
+            !token ||
+            token.usedAt ||
+            token.expiresAt <= new Date() ||
+            token.user.status !== 'ACTIVE' ||
+            token.user.deletedAt
+        ) {
             this.throwResetTokenError(token);
         }
 
@@ -477,13 +510,19 @@ export class AuthService {
         const tokenHash = this.hashResetToken(rawToken);
         const existingToken = await this.prisma.passwordResetToken.findUnique({
             where: { tokenHash },
-            select: { expiresAt: true, usedAt: true },
+            select: {
+                expiresAt: true,
+                usedAt: true,
+                user: { select: { status: true, deletedAt: true } },
+            },
         });
 
         if (
             !existingToken ||
             existingToken.usedAt ||
-            existingToken.expiresAt <= new Date()
+            existingToken.expiresAt <= new Date() ||
+            existingToken.user.status !== 'ACTIVE' ||
+            existingToken.user.deletedAt
         ) {
             this.throwResetTokenError(existingToken);
         }
@@ -498,10 +537,17 @@ export class AuthService {
                     userId: true,
                     expiresAt: true,
                     usedAt: true,
+                    user: { select: { status: true, deletedAt: true } },
                 },
             });
 
-            if (!token || token.usedAt || token.expiresAt <= new Date()) {
+            if (
+                !token ||
+                token.usedAt ||
+                token.expiresAt <= new Date() ||
+                token.user.status !== 'ACTIVE' ||
+                token.user.deletedAt
+            ) {
                 this.throwResetTokenError(token);
             }
 
@@ -556,17 +602,194 @@ export class AuthService {
                 role: true,
                 status: true,
                 createdAt: true,
+                passwordHash: true,
+                oauthAccounts: {
+                    select: { provider: true },
+                },
             },
         });
 
-        if (!user) {
+        if (!user || user.status !== 'ACTIVE') {
             throw new UnauthorizedException({
                 code: AUTH_ERROR_CODE.USER_NOT_FOUND,
                 message: 'Tài khoản không tồn tại hoặc không còn hoạt động.',
             });
         }
 
-        return user;
+        const { passwordHash, oauthAccounts, ...safeUser } = user;
+
+        return {
+            ...safeUser,
+            hasPassword: passwordHash !== null,
+            connectedProviders: oauthAccounts.map(
+                (account) => account.provider,
+            ),
+        };
+    }
+
+    async changePassword(
+        userId: string,
+        currentSessionId: string,
+        dto: ChangePasswordDto,
+    ) {
+        const user = await this.prisma.user.findFirst({
+            where: { id: userId, status: 'ACTIVE', deletedAt: null },
+            select: { passwordHash: true },
+        });
+
+        if (!user?.passwordHash) {
+            throw new BadRequestException({
+                code: 'PASSWORD_NOT_CONFIGURED',
+                message:
+                    'Tài khoản này chưa có mật khẩu. Vui lòng sử dụng phương thức đăng nhập đã liên kết.',
+            });
+        }
+
+        if (!(await verifyHash(user.passwordHash, dto.currentPassword))) {
+            throw new BadRequestException({
+                code: 'INVALID_CURRENT_PASSWORD',
+                message: 'Mật khẩu hiện tại không chính xác.',
+            });
+        }
+
+        if (await verifyHash(user.passwordHash, dto.newPassword)) {
+            throw new BadRequestException({
+                code: 'PASSWORD_UNCHANGED',
+                message: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+            });
+        }
+
+        const passwordHash = await hashValue(dto.newPassword);
+        const now = new Date();
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: userId },
+                data: { passwordHash },
+            }),
+            this.prisma.session.updateMany({
+                where: {
+                    userId,
+                    id: { not: currentSessionId },
+                    revokedAt: null,
+                },
+                data: { revokedAt: now },
+            }),
+        ]);
+
+        return {
+            message:
+                'Đổi mật khẩu thành công. Các phiên đăng nhập khác đã được thu hồi.',
+        };
+    }
+
+    async getSessions(userId: string, currentSessionId: string) {
+        const sessions = await this.prisma.session.findMany({
+            where: {
+                userId,
+                revokedAt: null,
+                expiresAt: { gt: new Date() },
+            },
+            select: {
+                id: true,
+                userAgent: true,
+                ipAddress: true,
+                createdAt: true,
+                lastUsedAt: true,
+                expiresAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return sessions.map((session) => ({
+            ...session,
+            isCurrent: session.id === currentSessionId,
+        }));
+    }
+
+    async revokeSession(
+        userId: string,
+        currentSessionId: string,
+        sessionId: string,
+    ) {
+        if (sessionId === currentSessionId) {
+            throw new BadRequestException({
+                code: 'CANNOT_REVOKE_CURRENT_SESSION',
+                message:
+                    'Không thể thu hồi phiên hiện tại tại đây. Hãy sử dụng chức năng đăng xuất.',
+            });
+        }
+
+        const result = await this.prisma.session.updateMany({
+            where: { id: sessionId, userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+        });
+
+        if (result.count !== 1) {
+            throw new BadRequestException({
+                code: 'SESSION_NOT_FOUND',
+                message: 'Phiên đăng nhập không tồn tại hoặc đã được thu hồi.',
+            });
+        }
+
+        return { message: 'Đã đăng xuất thiết bị khỏi tài khoản.' };
+    }
+
+    async revokeOtherSessions(userId: string, currentSessionId: string) {
+        const result = await this.prisma.session.updateMany({
+            where: {
+                userId,
+                id: { not: currentSessionId },
+                revokedAt: null,
+            },
+            data: { revokedAt: new Date() },
+        });
+
+        return {
+            message: `Đã đăng xuất ${result.count} phiên trên thiết bị khác.`,
+            revokedCount: result.count,
+        };
+    }
+
+    async deleteAccount(userId: string, dto: DeleteAccountDto) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { passwordHash: true, status: true },
+        });
+
+        if (!user || user.status === 'DELETED') {
+            throw new BadRequestException({
+                code: 'ACCOUNT_ALREADY_DELETED',
+                message: 'Tài khoản không tồn tại hoặc đã được xóa.',
+            });
+        }
+        if (!user.passwordHash) {
+            throw new BadRequestException({
+                code: 'GOOGLE_REAUTH_REQUIRED',
+                message:
+                    'Tài khoản Google cần xác thực lại trước khi có thể xóa.',
+            });
+        }
+        if (!(await verifyHash(user.passwordHash, dto.currentPassword))) {
+            throw new BadRequestException({
+                code: 'INVALID_CURRENT_PASSWORD',
+                message: 'Mật khẩu hiện tại không chính xác.',
+            });
+        }
+
+        const now = new Date();
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: userId },
+                data: { status: 'DELETED', deletedAt: now },
+            }),
+            this.prisma.session.updateMany({
+                where: { userId, revokedAt: null },
+                data: { revokedAt: now },
+            }),
+        ]);
+
+        return { message: 'Tài khoản của bạn đã được xóa.' };
     }
 
     async verifyEmail(email: string, otp: string) {
@@ -576,7 +799,7 @@ export class AuthService {
             where: { email: normalizedEmail },
         });
 
-        if (!user) {
+        if (!user || user.status !== 'ACTIVE' || user.deletedAt) {
             throw new BadRequestException({
                 code: 'INVALID_VERIFICATION_CODE',
                 message: 'Mã xác minh không hợp lệ.',
@@ -651,21 +874,30 @@ export class AuthService {
             });
         }
 
-        await this.prisma.$transaction([
-            this.prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    emailVerifiedAt: new Date(),
+        await this.prisma.$transaction(async (tx) => {
+            const now = new Date();
+            const consumed = await tx.emailVerification.updateMany({
+                where: {
+                    id: verification.id,
+                    usedAt: null,
+                    expiresAt: { gt: now },
+                    attempts: { lt: 5 },
                 },
-            }),
+                data: { usedAt: now },
+            });
 
-            this.prisma.emailVerification.update({
-                where: { id: verification.id },
-                data: {
-                    usedAt: new Date(),
-                },
-            }),
-        ]);
+            if (consumed.count !== 1) {
+                throw new BadRequestException({
+                    code: 'INVALID_VERIFICATION_CODE',
+                    message: 'Mã xác minh không hợp lệ.',
+                });
+            }
+
+            await tx.user.update({
+                where: { id: user.id },
+                data: { emailVerifiedAt: now },
+            });
+        });
 
         return {
             message: 'Xác minh email thành công.',
@@ -679,7 +911,7 @@ export class AuthService {
             where: { email: normalizedEmail },
         });
 
-        if (!user) {
+        if (!user || user.status !== 'ACTIVE' || user.deletedAt) {
             throw new BadRequestException({
                 code: 'USER_NOT_FOUND',
                 message: 'Không tìm thấy tài khoản với địa chỉ email này.',
@@ -744,6 +976,12 @@ export class AuthService {
     }
 
     async findOrCreateGoogleUser(profile: GoogleProfile) {
+        if (!profile.emailVerified) {
+            throw new UnauthorizedException({
+                code: 'GOOGLE_EMAIL_NOT_VERIFIED',
+                message: 'Email Google chưa được xác minh.',
+            });
+        }
         // 1. Google account này đã từng liên kết
         const existingOAuthAccount = await this.prisma.oAuthAccount.findUnique({
             where: {

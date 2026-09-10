@@ -5,12 +5,15 @@ import {
     HttpException,
     HttpStatus,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
     catch(exception: unknown, host: ArgumentsHost) {
         const context = host.switchToHttp();
-        const response = context.getResponse();
+        const response = context.getResponse<Response>();
+
+        if (response.headersSent) return;
 
         const status =
             exception instanceof HttpException

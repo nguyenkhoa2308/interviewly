@@ -3,6 +3,7 @@ import {
     IsArray,
     IsEnum,
     IsInt,
+    IsIn,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -154,18 +155,14 @@ export class CompleteOnboardingDto {
 
     @ApiPropertyOptional({
         example: 30,
-        minimum: 1,
-        maximum: 180,
+        enum: [15, 30, 45, 60],
         description:
             'Thời lượng ưu tiên cho mỗi buổi luyện tập, tính bằng phút.',
     })
     @IsOptional()
     @IsInt({ message: 'Thời lượng buổi luyện tập phải là số nguyên.' })
-    @Min(1, {
-        message: 'Thời lượng buổi luyện tập phải ít nhất là 1 phút.',
-    })
-    @Max(180, {
-        message: 'Thời lượng buổi luyện tập không được vượt quá 180 phút.',
+    @IsIn([15, 30, 45, 60], {
+        message: 'Thời lượng buổi luyện tập phải là 15, 30, 45 hoặc 60 phút.',
     })
     sessionLength?: number;
 

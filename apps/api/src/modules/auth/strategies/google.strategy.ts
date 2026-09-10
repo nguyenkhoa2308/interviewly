@@ -8,6 +8,7 @@ export interface GoogleProfile {
     email: string;
     fullName: string;
     avatarUrl: string | null;
+    emailVerified: boolean;
 }
 
 @Injectable()
@@ -32,6 +33,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         done: VerifyCallback,
     ) {
         const email = profile.emails?.[0]?.value;
+        const rawProfile = profile._json as {
+            email_verified?: boolean;
+            verified_email?: boolean;
+        };
 
         if (!email) {
             return done(new Error('Google account does not provide an email'));
@@ -42,6 +47,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
             email: email.toLowerCase(),
             fullName: profile.displayName,
             avatarUrl: profile.photos?.[0]?.value ?? null,
+            emailVerified:
+                rawProfile.email_verified === true ||
+                rawProfile.verified_email === true,
         };
 
         done(null, googleProfile);

@@ -2,17 +2,21 @@ import type { Response, Request } from 'express';
 import {
     Body,
     Controller,
+    Delete,
     Req,
     Post,
     Res,
     UnauthorizedException,
     Get,
+    Param,
+    Patch,
     Query,
     UseGuards,
     UseFilters,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 
@@ -23,6 +27,8 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ValidateResetTokenDto } from './dto/validate-reset-token.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { clearAuthCookies, setAuthCookies } from './utils/cookie.util';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -59,6 +65,7 @@ export class AuthController {
     }
 
     @Post('register')
+    @Throttle({ default: { limit: 5, ttl: minutes(15) } })
     @ApiOperation({
         summary: 'Đăng ký tài khoản',
         description:
@@ -74,6 +81,7 @@ export class AuthController {
     }
 
     @Post('login')
+    @Throttle({ default: { limit: 10, ttl: minutes(1) } })
     @ApiOperation({
         summary: 'Đăng nhập',
         description:
@@ -103,6 +111,7 @@ export class AuthController {
     }
 
     @Post('refresh')
+    @Throttle({ default: { limit: 30, ttl: minutes(1) } })
     @ApiOperation({
         summary: 'Làm mới phiên đăng nhập',
         description:
@@ -186,7 +195,78 @@ export class AuthController {
         return this.authService.getMe(user.id);
     }
 
+    @Patch('password')
+    @UseGuards(JwtAuthGuard)
+    @Throttle({ default: { limit: 5, ttl: minutes(15) } })
+    @ApiOperation({
+        summary: 'Đổi mật khẩu',
+        description:
+            'Xác minh mật khẩu hiện tại, cập nhật mật khẩu mới và thu hồi các phiên khác.',
+    })
+    changePassword(
+        @CurrentUser() user: AuthUser,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(user.id, user.sessionId, dto);
+    }
+
+    @Get('sessions')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Danh sách phiên đăng nhập của tài khoản' })
+    getSessions(@CurrentUser() user: AuthUser) {
+        return this.authService.getSessions(user.id, user.sessionId);
+    }
+
+    @Delete('sessions/others')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Đăng xuất khỏi tất cả thiết bị khác' })
+    revokeOtherSessions(@CurrentUser() user: AuthUser) {
+        return this.authService.revokeOtherSessions(user.id, user.sessionId);
+    }
+
+    @Delete('sessions/:sessionId')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Thu hồi một phiên đăng nhập' })
+    revokeSession(
+        @CurrentUser() user: AuthUser,
+        @Param('sessionId') sessionId: string,
+    ) {
+        return this.authService.revokeSession(
+            user.id,
+            user.sessionId,
+            sessionId,
+        );
+    }
+
+    @Delete('account')
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({
+        summary: 'Xóa tài khoản hiện tại',
+        description:
+            'Soft-delete tài khoản đang đăng nhập và thu hồi toàn bộ phiên. Yêu cầu mật khẩu hiện tại.',
+    })
+    @ApiResponse({ status: 200, description: 'Tài khoản đã được xóa.' })
+    @ApiResponse({
+        status: 400,
+        description: 'Xác nhận hoặc mật khẩu không hợp lệ.',
+    })
+    async deleteAccount(
+        @CurrentUser() user: AuthUser,
+        @Body() dto: DeleteAccountDto,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const result = await this.authService.deleteAccount(user.id, dto);
+
+        clearAuthCookies(
+            res,
+            this.configService.get<string>('NODE_ENV') === 'production',
+        );
+
+        return result;
+    }
+
     @Post('verify-email')
+    @Throttle({ default: { limit: 10, ttl: minutes(10) } })
     @ApiOperation({
         summary: 'Xác minh email',
         description: 'Xác minh địa chỉ email bằng mã OTP đã được gửi.',
@@ -201,6 +281,7 @@ export class AuthController {
     }
 
     @Post('resend-verification')
+    @Throttle({ default: { limit: 3, ttl: minutes(10) } })
     @ApiOperation({
         summary: 'Gửi lại mã xác minh email',
         description: 'Tạo và gửi lại mã OTP xác minh tới email người dùng.',
@@ -215,6 +296,7 @@ export class AuthController {
     }
 
     @Post('forgot-password')
+    @Throttle({ default: { limit: 5, ttl: minutes(15) } })
     @ApiOperation({
         summary: 'Yêu cầu đặt lại mật khẩu',
         description:
@@ -245,6 +327,7 @@ export class AuthController {
     }
 
     @Post('reset-password')
+    @Throttle({ default: { limit: 5, ttl: minutes(15) } })
     @ApiOperation({
         summary: 'Đặt lại mật khẩu',
         description:
@@ -263,6 +346,7 @@ export class AuthController {
     }
 
     @Get('google')
+    @Throttle({ default: { limit: 20, ttl: minutes(5) } })
     @UseGuards(GoogleAuthGuard)
     @ApiOperation({
         summary: 'Bắt đầu đăng nhập Google',

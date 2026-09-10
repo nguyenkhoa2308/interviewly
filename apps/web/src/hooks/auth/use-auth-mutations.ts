@@ -7,6 +7,9 @@ import {
     resendVerification,
     resetPassword,
     verifyEmail,
+    changePassword,
+    revokeOtherSessions,
+    revokeSession,
 } from '@/services/auth.service';
 
 export function useLogin() {
@@ -31,4 +34,16 @@ export function useForgotPassword() {
 
 export function useResetPassword() {
     return useMutation({ mutationFn: resetPassword });
+}
+
+export function useChangePassword() {
+    return useMutation({ mutationFn: changePassword });
+}
+
+export function useRevokeSession() {
+    return useMutation({ mutationFn: revokeSession });
+}
+
+export function useRevokeOtherSessions() {
+    return useMutation({ mutationFn: revokeOtherSessions });
 }

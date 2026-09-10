@@ -15,7 +15,7 @@ export function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     const initials = user ? getInitials(user.fullName) : '';
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-violet-100 bg-white/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-violet-100 bg-white px-4 backdrop-blur-md sm:px-6 lg:px-8">
             <button
                 type="button"
                 aria-label="Mở thanh điều hướng"

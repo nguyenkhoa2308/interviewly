@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
+    NODE_ENV: z
+        .enum(['development', 'test', 'production'])
+        .default('development'),
     PORT: z.coerce.number().default(8000),
     FRONTEND_URL: z.string().url(),
     DATABASE_URL: z.string().url(),
@@ -13,7 +16,13 @@ const envSchema = z.object({
 
     MAIL_HOST: z.string().min(1),
     MAIL_PORT: z.coerce.number(),
-    MAIL_SECURE: z.coerce.boolean(),
+    MAIL_SECURE: z.preprocess(
+        (value) =>
+            typeof value === 'string'
+                ? value.trim().toLowerCase() === 'true'
+                : value,
+        z.boolean(),
+    ),
     MAIL_USER: z.string().email(),
     MAIL_PASSWORD: z.string().min(1),
     MAIL_FROM: z.string().min(1),

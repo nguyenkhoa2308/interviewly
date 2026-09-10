@@ -89,7 +89,11 @@ describe('AuthService password recovery', () => {
         expect(result.message).toContain('Nếu email tồn tại');
         expect(prisma.user.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { email: 'user@example.com', deletedAt: null },
+                where: {
+                    email: 'user@example.com',
+                    status: 'ACTIVE',
+                    deletedAt: null,
+                },
             }),
         );
 
@@ -128,6 +132,7 @@ describe('AuthService password recovery', () => {
         prisma.passwordResetToken.findUnique.mockResolvedValue({
             usedAt: null,
             expiresAt: new Date(Date.now() + 60_000),
+            user: { status: 'ACTIVE', deletedAt: null },
         });
 
         await expect(service.validateResetToken('raw-token')).resolves.toEqual({
@@ -161,6 +166,7 @@ describe('AuthService password recovery', () => {
             userId: user.id,
             usedAt: null,
             expiresAt: new Date(Date.now() + 60_000),
+            user: { status: 'ACTIVE', deletedAt: null },
         });
 
         const result = await service.resetPassword('raw-token', 'new-password');
@@ -188,6 +194,7 @@ describe('AuthService password recovery', () => {
             userId: user.id,
             usedAt: null,
             expiresAt: new Date(Date.now() + 60_000),
+            user: { status: 'ACTIVE', deletedAt: null },
         });
         prisma.passwordResetToken.updateMany.mockResolvedValueOnce({
             count: 0,

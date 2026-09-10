@@ -17,9 +17,13 @@ const onboardingUserSelect = {
             customInterviewGoal: true,
             learningStyle: true,
             contentPreferences: true,
-            sessionLength: true,
             defaultDifficulty: true,
             feedbackDetail: true,
+        },
+    },
+    settings: {
+        select: {
+            defaultDurationMinutes: true,
         },
     },
 } satisfies Prisma.UserSelect;
@@ -76,9 +80,6 @@ export class OnboardingService {
             ...(dto.contentPreferences !== undefined && {
                 contentPreferences: dto.contentPreferences,
             }),
-            ...(dto.sessionLength !== undefined && {
-                sessionLength: dto.sessionLength,
-            }),
             ...(dto.defaultDifficulty !== undefined && {
                 defaultDifficulty: dto.defaultDifficulty,
             }),
@@ -110,6 +111,19 @@ export class OnboardingService {
                 },
                 update: preferenceData,
             });
+
+            if (dto.sessionLength !== undefined) {
+                await transaction.userSetting.upsert({
+                    where: { userId },
+                    create: {
+                        userId,
+                        defaultDurationMinutes: dto.sessionLength,
+                    },
+                    update: {
+                        defaultDurationMinutes: dto.sessionLength,
+                    },
+                });
+            }
 
             const user = await transaction.user.findUnique({
                 where: { id: userId },
@@ -154,6 +168,8 @@ export class OnboardingService {
             preferences: user.preference
                 ? {
                       ...user.preference,
+                      sessionLength:
+                          user.settings?.defaultDurationMinutes ?? 30,
                       yearsOfExperience:
                           user.preference.yearsOfExperience?.toNumber() ?? null,
                   }

@@ -22,9 +22,11 @@ describe('OnboardingService', () => {
             customInterviewGoal: null,
             learningStyle: null,
             contentPreferences: [],
-            sessionLength: null,
             defaultDifficulty: null,
             feedbackDetail: null,
+        },
+        settings: {
+            defaultDurationMinutes: 30,
         },
     };
 
@@ -35,6 +37,9 @@ describe('OnboardingService', () => {
             updateMany: jest.fn(),
         },
         userPreference: {
+            upsert: jest.fn(),
+        },
+        userSetting: {
             upsert: jest.fn(),
         },
         $transaction: jest.fn(),
@@ -57,6 +62,7 @@ describe('OnboardingService', () => {
         await expect(service.getOnboarding('user-id')).resolves.toMatchObject({
             preferences: {
                 yearsOfExperience: 1.5,
+                sessionLength: 30,
             },
         });
     });
@@ -102,6 +108,31 @@ describe('OnboardingService', () => {
         });
     });
 
+    it('stores session length in user settings', async () => {
+        prismaMock.user.findUnique
+            .mockResolvedValueOnce({ id: 'user-id' })
+            .mockResolvedValueOnce({
+                ...user,
+                onboardingCompletedAt: new Date(),
+                settings: { defaultDurationMinutes: 45 },
+            });
+
+        await service.completeOnboarding('user-id', {
+            sessionLength: 45,
+        });
+
+        expect(prismaMock.userSetting.upsert).toHaveBeenCalledWith({
+            where: { userId: 'user-id' },
+            create: { userId: 'user-id', defaultDurationMinutes: 45 },
+            update: { defaultDurationMinutes: 45 },
+        });
+        expect(prismaMock.userPreference.upsert).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                update: expect.objectContaining({ sessionLength: 45 }),
+            }),
+        );
+    });
+
     it('skips without writing user preferences', async () => {
         prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
         prismaMock.user.findUnique.mockResolvedValue({
@@ -112,6 +143,7 @@ describe('OnboardingService', () => {
         await service.skipOnboarding('user-id');
 
         expect(prismaMock.userPreference.upsert).not.toHaveBeenCalled();
+        expect(prismaMock.userSetting.upsert).not.toHaveBeenCalled();
         expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
             where: { id: 'user-id' },
             data: { onboardingCompletedAt: expect.any(Date) },

@@ -38,7 +38,12 @@ export const onboardingSchema = z
         contentPreferences: z
             .array(z.enum(contentPreferences))
             .min(1, 'Vui lòng chọn ít nhất một nội dung'),
-        sessionLength: z.number().int().min(1).max(180),
+        sessionLength: z
+            .number()
+            .int()
+            .refine((value) => [15, 30, 45, 60].includes(value), {
+                message: 'Thời lượng phải là 15, 30, 45 hoặc 60 phút',
+            }),
         defaultDifficulty: z.enum(difficulties),
         feedbackDetail: z.enum(feedbackDetails),
     })

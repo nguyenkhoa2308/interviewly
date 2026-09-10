@@ -5,6 +5,30 @@ import { InterviewGoal } from '../../../generated/prisma/client';
 import { CompleteOnboardingDto } from './complete-onboarding.dto';
 
 describe('CompleteOnboardingDto', () => {
+    it.each([15, 30, 45, 60])(
+        'accepts canonical session length %s',
+        async (sessionLength) => {
+            const errors = await validate(
+                plainToInstance(CompleteOnboardingDto, { sessionLength }),
+            );
+
+            expect(errors).toHaveLength(0);
+        },
+    );
+
+    it.each([0, 20, 90, 180])(
+        'rejects non-canonical session length %s',
+        async (sessionLength) => {
+            const errors = await validate(
+                plainToInstance(CompleteOnboardingDto, { sessionLength }),
+            );
+
+            expect(
+                errors.some((error) => error.property === 'sessionLength'),
+            ).toBe(true);
+        },
+    );
+
     it('requires customInterviewGoal when OTHER is selected', async () => {
         const dto = plainToInstance(CompleteOnboardingDto, {
             interviewGoals: [InterviewGoal.GET_A_JOB, InterviewGoal.OTHER],
