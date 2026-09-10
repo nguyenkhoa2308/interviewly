@@ -127,6 +127,23 @@ enum FeedbackDetail {
   DETAILED
 }
 
+enum CVProcessingStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+
+  @@map("cv_processing_status_enum")
+}
+
+enum CVAnalysisStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("cv_analysis_status_enum")
+}
+
 model User {
   id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String     @unique @db.VarChar(255)
@@ -149,6 +166,7 @@ model User {
   settings            UserSetting?
   skills              UserSkill[]
   emailVerifications  EmailVerification[]
+  cvs                 CV[]
 
   @@index([deletedAt])
   @@map("users")
@@ -306,4 +324,65 @@ model EmailVerification {
   @@index([userId])
   @@index([expiresAt])
   @@map("email_verifications")
+}
+
+model CV {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String             @map("user_id") @db.Uuid
+  name                String             @db.VarChar(150)
+  originalFilename    String             @map("original_filename") @db.VarChar(255)
+  storageKey          String             @unique @map("storage_key")
+  mimeType            String             @map("mime_type") @db.VarChar(100)
+  fileSize            Int?               @map("file_size")
+  extractedText       String?            @map("extracted_text")
+  processingStatus    CVProcessingStatus @default(UPLOADING) @map("processing_status")
+  processingErrorCode String?            @map("processing_error_code") @db.VarChar(100)
+  processingError     String?            @map("processing_error")
+  isDefault           Boolean            @default(false) @map("is_default")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses CVAnalysis[]
+
+  @@index([userId, deletedAt])
+  @@index([userId, processingStatus])
+  @@map("cvs")
+}
+
+model CVAnalysis {
+  id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cvId   String           @map("cv_id") @db.Uuid
+  status CVAnalysisStatus @default(PROCESSING)
+
+  overallScore  Decimal?         @map("overall_score") @db.Decimal(5, 2)
+  detectedRole  String?          @map("detected_role") @db.VarChar(150)
+  detectedLevel ExperienceLevel? @map("detected_level")
+
+  extractedSkills    Json? @map("extracted_skills")
+  workExperiences    Json? @map("work_experiences")
+  projects           Json?
+  education          Json?
+  strengths          Json?
+  weaknesses         Json?
+  interviewRisks     Json? @map("interview_risks")
+  potentialQuestions Json? @map("potential_questions")
+  suggestions        Json?
+
+  modelProvider String? @map("model_provider") @db.VarChar(100)
+  modelName     String? @map("model_name") @db.VarChar(150)
+  promptVersion String? @map("prompt_version") @db.VarChar(50)
+
+  errorCode    String? @map("error_code") @db.VarChar(100)
+  errorMessage String? @map("error_message")
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  cv CV @relation(fields: [cvId], references: [id], onDelete: Cascade)
+
+  @@index([cvId, createdAt(sort: Desc)])
+  @@index([cvId, status])
+  @@map("cv_analyses")
 }
