@@ -329,12 +329,14 @@ model EmailVerification {
 model CV {
   id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId              String             @map("user_id") @db.Uuid
+  currentVersionId    String?            @unique @map("current_version_id") @db.Uuid
   name                String             @db.VarChar(150)
   originalFilename    String             @map("original_filename") @db.VarChar(255)
   storageKey          String             @unique @map("storage_key")
   mimeType            String             @map("mime_type") @db.VarChar(100)
   fileSize            Int?               @map("file_size")
   extractedText       String?            @map("extracted_text")
+  structuredContent   Json?              @map("structured_content")
   processingStatus    CVProcessingStatus @default(UPLOADING) @map("processing_status")
   processingErrorCode String?            @map("processing_error_code") @db.VarChar(100)
   processingError     String?            @map("processing_error")
@@ -343,17 +345,46 @@ model CV {
   updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt           DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analyses CVAnalysis[]
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses       CVAnalysis[]
+  versions       CVVersion[]  @relation("CVVersions")
+  currentVersion CVVersion?   @relation("CurrentCVVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
 
   @@index([userId, deletedAt])
   @@index([userId, processingStatus])
   @@map("cvs")
 }
 
+model CVVersion {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cvId                String             @map("cv_id") @db.Uuid
+  versionNumber       Int                @map("version_number")
+  originalFilename    String             @map("original_filename") @db.VarChar(255)
+  storageKey          String             @unique @map("storage_key")
+  mimeType            String             @map("mime_type") @db.VarChar(100)
+  fileSize            Int?               @map("file_size")
+  extractedText       String?            @map("extracted_text")
+  structuredContent   Json?              @map("structured_content")
+  processingStatus    CVProcessingStatus @default(UPLOADING) @map("processing_status")
+  processingErrorCode String?            @map("processing_error_code") @db.VarChar(100)
+  processingError     String?            @map("processing_error")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cv         CV           @relation("CVVersions", fields: [cvId], references: [id], onDelete: Cascade)
+  currentFor CV?          @relation("CurrentCVVersion")
+  analyses  CVAnalysis[]
+
+  @@unique([cvId, versionNumber])
+  @@index([cvId, createdAt(sort: Desc)])
+  @@index([cvId, processingStatus])
+  @@map("cv_versions")
+}
+
 model CVAnalysis {
   id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   cvId   String           @map("cv_id") @db.Uuid
+  cvVersionId String?     @map("cv_version_id") @db.Uuid
   status CVAnalysisStatus @default(PROCESSING)
 
   overallScore  Decimal?         @map("overall_score") @db.Decimal(5, 2)
@@ -380,9 +411,12 @@ model CVAnalysis {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
 
-  cv CV @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  cv        CV         @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  cvVersion CVVersion? @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
 
   @@index([cvId, createdAt(sort: Desc)])
   @@index([cvId, status])
+  @@index([cvVersionId, createdAt(sort: Desc)])
+  @@index([cvVersionId, status])
   @@map("cv_analyses")
 }

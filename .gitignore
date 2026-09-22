@@ -19,6 +19,8 @@ apps/api/src/generated/prisma/
 # Testing
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
 
 # Environment
 .env
@@ -70,3 +72,4 @@ Thumbs.db
 
 # Misc
 *.pem
+docs/

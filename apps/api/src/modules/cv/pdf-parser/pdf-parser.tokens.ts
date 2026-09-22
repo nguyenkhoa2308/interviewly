@@ -1,0 +1,1 @@
+export const PDF_PARSER_FACTORY = Symbol('PDF_PARSER_FACTORY');

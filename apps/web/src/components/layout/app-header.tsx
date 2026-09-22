@@ -19,7 +19,7 @@ export function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             <button
                 type="button"
                 aria-label="Mở thanh điều hướng"
-                className="focus-visible:ring-primary flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:outline-none lg:hidden"
+                className="focus-visible:ring-primary flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:outline-none 2xl:hidden"
                 onClick={onOpenSidebar}
             >
                 <Menu className="size-5" />

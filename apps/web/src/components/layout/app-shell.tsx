@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 open={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
             />
-            <div className="min-w-0 lg:pl-64">
+            <div className="min-w-0 2xl:pl-64">
                 <AppHeader onOpenSidebar={() => setSidebarOpen(true)} />
                 <main className="min-h-[calc(100dvh-4rem)] min-w-0">
                     {children}

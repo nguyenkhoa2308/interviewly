@@ -2,10 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
-  '@parcel/watcher': true
-  '@scarf/scarf': true
+  "@google/genai": false
+  "@parcel/watcher": true
+  "@scarf/scarf": true
   argon2: true
   esbuild: true
+  protobufjs: false
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - lucide-react@1.39.0

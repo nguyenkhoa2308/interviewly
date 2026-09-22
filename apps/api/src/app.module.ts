@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -9,8 +12,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { UsersModule } from './modules/users/users.module';
 import { SettingsModule } from './modules/settings/settings.module';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
+import { CvModule } from './modules/cv/cv.module';
 
 @Module({
     imports: [
@@ -28,6 +30,7 @@ import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
         OnboardingModule,
         UsersModule,
         SettingsModule,
+        CvModule,
     ],
     controllers: [AppController],
     providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -60,16 +60,18 @@ function DialogContent({
             <DialogPrimitive.Content
                 data-slot="dialog-content"
                 className={cn(
-                    'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-violet-100 bg-white shadow-[0_28px_90px_rgba(38,25,82,0.24)] outline-none',
+                    'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95 fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-violet-100 bg-white shadow-[0_28px_90px_rgba(38,25,82,0.24)] outline-none max-sm:!inset-0 max-sm:!top-0 max-sm:!left-0 max-sm:!h-[100dvh] max-sm:!max-h-none max-sm:!w-full max-sm:!max-w-none max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!rounded-none max-sm:!border-0 max-sm:!shadow-none',
                     className,
                 )}
                 {...props}
             >
-                {children}
+                <div className="contents max-sm:flex max-sm:min-h-full max-sm:flex-col max-sm:justify-center">
+                    {children}
+                </div>
                 {showCloseButton && (
                     <DialogPrimitive.Close
                         disabled={closeButtonDisabled}
-                        className="focus-visible:ring-primary/30 absolute top-4 right-4 flex size-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none"
+                        className="focus-visible:ring-primary/30 absolute top-4 right-4 flex size-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none max-sm:top-[max(1rem,env(safe-area-inset-top))] max-sm:right-[max(1rem,env(safe-area-inset-right))]"
                     >
                         <X className="size-5" />
                         <span className="sr-only">Đóng</span>
