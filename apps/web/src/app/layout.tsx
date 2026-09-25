@@ -1,19 +1,23 @@
 import type { Metadata } from 'next';
-import { Nunito, Geist_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthRouteGuard } from '@/components/auth/auth-route-guard';
 
-const fontSans = Nunito({
-    subsets: ['vietnamese', 'latin'],
-    variable: '--font-sans',
+const fontSans = localFont({
+    src: '../assets/fonts/Nunito-Variable.ttf',
+    variable: '--font-nunito',
+    weight: '200 1000',
+    display: 'swap',
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+    src: '../assets/fonts/GeistMono-Variable.woff2',
     variable: '--font-geist-mono',
-    subsets: ['latin'],
+    weight: '100 900',
+    display: 'swap',
 });
 
 export const metadata: Metadata = {
