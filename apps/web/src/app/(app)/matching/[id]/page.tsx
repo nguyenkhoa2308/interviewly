@@ -1,0 +1,2 @@
+import { CvJdMatchResultPage } from '@/components/cv-jd-match/cv-jd-match-result-page';
+export default async function MatchResultRoute({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; return <CvJdMatchResultPage id={id} />; }

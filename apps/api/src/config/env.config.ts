@@ -48,6 +48,7 @@ const envSchema = z
             .default('gemini-3.5-flash-lite,gemini-3.1-flash-lite'),
         CV_ANALYSIS_DAILY_LIMIT: z.coerce.number().int().min(1).default(10),
         JD_ANALYSIS_DAILY_LIMIT: z.coerce.number().int().min(1).default(10),
+        CV_JD_MATCH_DAILY_LIMIT: z.coerce.number().int().min(1).default(10),
         AI_REQUEST_TIMEOUT_MS: z.coerce
             .number()
             .int()

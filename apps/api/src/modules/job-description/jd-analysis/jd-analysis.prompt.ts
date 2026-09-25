@@ -1,4 +1,4 @@
-export const JD_ANALYSIS_PROMPT_VERSION = 'jd-analysis-v1';
+export const JD_ANALYSIS_PROMPT_VERSION = 'jd-analysis-v2';
 
 export const JD_ANALYSIS_SYSTEM_INSTRUCTION = `Bạn là chuyên gia phân tích mô tả công việc cho Interviewly.
 Chỉ phân tích nội dung JD được cung cấp và trả về JSON đúng schema.

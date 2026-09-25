@@ -152,6 +152,14 @@ enum JDAnalysisStatus {
   @@map("jd_analysis_status_enum")
 }
 
+enum CVJDMatchStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("cv_jd_match_status_enum")
+}
+
 model User {
   id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String     @unique @db.VarChar(255)
@@ -176,6 +184,7 @@ model User {
   emailVerifications  EmailVerification[]
   cvs                 CV[]
   jobDescriptions     JobDescription[]
+  cvJdMatches         CVJDMatch[]
 
   @@index([deletedAt])
   @@map("users")
@@ -358,6 +367,7 @@ model CV {
   analyses       CVAnalysis[]
   versions       CVVersion[]  @relation("CVVersions")
   currentVersion CVVersion?   @relation("CurrentCVVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  matches        CVJDMatch[]
 
   @@index([userId, deletedAt])
   @@index([userId, processingStatus])
@@ -382,7 +392,8 @@ model CVVersion {
 
   cv         CV           @relation("CVVersions", fields: [cvId], references: [id], onDelete: Cascade)
   currentFor CV?          @relation("CurrentCVVersion")
-  analyses  CVAnalysis[]
+  analyses   CVAnalysis[]
+  matches    CVJDMatch[]
 
   @@unique([cvId, versionNumber])
   @@index([cvId, createdAt(sort: Desc)])
@@ -391,10 +402,10 @@ model CVVersion {
 }
 
 model CVAnalysis {
-  id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cvId   String           @map("cv_id") @db.Uuid
-  cvVersionId String?     @map("cv_version_id") @db.Uuid
-  status CVAnalysisStatus @default(PROCESSING)
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cvId        String           @map("cv_id") @db.Uuid
+  cvVersionId String?          @map("cv_version_id") @db.Uuid
+  status      CVAnalysisStatus @default(PROCESSING)
 
   overallScore  Decimal?         @map("overall_score") @db.Decimal(5, 2)
   detectedRole  String?          @map("detected_role") @db.VarChar(150)
@@ -420,8 +431,9 @@ model CVAnalysis {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
 
-  cv        CV         @relation(fields: [cvId], references: [id], onDelete: Cascade)
-  cvVersion CVVersion? @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  cv        CV          @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  cvVersion CVVersion?  @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  matches   CVJDMatch[]
 
   @@index([cvId, createdAt(sort: Desc)])
   @@index([cvId, status])
@@ -442,6 +454,7 @@ model JobDescription {
 
   user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   analyses JDAnalysis[]
+  matches  CVJDMatch[]
 
   @@index([userId, deletedAt, createdAt(sort: Desc)])
   @@map("job_descriptions")
@@ -470,8 +483,57 @@ model JDAnalysis {
   completedAt      DateTime?        @map("completed_at") @db.Timestamptz(6)
 
   jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  matches        CVJDMatch[]
 
   @@index([jobDescriptionId, createdAt(sort: Desc)])
   @@index([jobDescriptionId, status])
   @@map("jd_analyses")
+}
+
+model CVJDMatch {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  cvId             String          @map("cv_id") @db.Uuid
+  cvVersionId      String          @map("cv_version_id") @db.Uuid
+  cvAnalysisId     String          @map("cv_analysis_id") @db.Uuid
+  jobDescriptionId String          @map("job_description_id") @db.Uuid
+  jdAnalysisId     String          @map("jd_analysis_id") @db.Uuid
+  status           CVJDMatchStatus @default(PROCESSING)
+
+  cvNameSnapshot    String  @map("cv_name_snapshot") @db.VarChar(150)
+  cvVersionNumber   Int     @map("cv_version_number")
+  jdTitleSnapshot   String  @map("jd_title_snapshot") @db.VarChar(150)
+  jdCompanySnapshot  String?   @map("jd_company_snapshot") @db.VarChar(150)
+  cvUpdatedAtSnapshot DateTime  @map("cv_updated_at_snapshot") @db.Timestamptz(6)
+  jdUpdatedAtSnapshot DateTime  @map("jd_updated_at_snapshot") @db.Timestamptz(6)
+
+  matchScore          Decimal? @map("match_score") @db.Decimal(5, 2)
+  scoreBreakdown      Json?    @map("score_breakdown")
+  matchSummary        String?  @map("match_summary")
+  matchedSkills       Json?    @map("matched_skills")
+  skillGaps           Json?    @map("skill_gaps")
+  strengths           Json?
+  gaps                Json?
+  experienceAlignment Json?    @map("experience_alignment")
+  recommendations     Json?
+
+  modelProvider String?   @map("model_provider") @db.VarChar(100)
+  modelName     String?   @map("model_name") @db.VarChar(150)
+  promptVersion String?   @map("prompt_version") @db.VarChar(50)
+  errorCode     String?   @map("error_code") @db.VarChar(100)
+  errorMessage  String?   @map("error_message")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv             CV             @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  cvVersion      CVVersion      @relation(fields: [cvVersionId], references: [id], onDelete: Cascade)
+  cvAnalysis     CVAnalysis     @relation(fields: [cvAnalysisId], references: [id], onDelete: Cascade)
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  jdAnalysis     JDAnalysis     @relation(fields: [jdAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, cvId, jobDescriptionId, createdAt(sort: Desc)])
+  @@index([cvAnalysisId, jdAnalysisId, status])
+  @@map("cv_jd_matches")
 }
