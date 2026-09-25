@@ -1,7 +1,6 @@
 'use client';
 
 import {
-    ArrowLeft,
     CalendarDays,
     CircleAlert,
     Copy,
@@ -35,6 +34,7 @@ import {
 } from '@/components/cv/cv-dialogs';
 import { CvStatusBadge } from '@/components/cv/cv-status-badge';
 import { Button } from '@/components/ui/button';
+import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
 import { useCv, useLatestCvAnalysis, useSetDefaultCv } from '@/hooks/cv';
 import { ApiError } from '@/lib/api-error';
 import { getCvContentState } from '@/lib/cv-detail-state';
@@ -70,20 +70,12 @@ export function CvDetailShell({ cvId }: { cvId: string }) {
 
     return (
         <main className="mx-auto w-full max-w-[1600px] min-w-0 px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
-            <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="-ml-3 text-slate-500 hover:text-slate-900"
-            >
-                <Link
-                    href="/cv"
-                    className="!text-primary cursor-pointer !font-bold"
-                >
-                    <ArrowLeft className="size-4" aria-hidden="true" />
-                    Quay lại danh sách CV
-                </Link>
-            </Button>
+            <PageBreadcrumb
+                items={[
+                    { label: 'CV của bạn', href: '/cv' },
+                    { label: query.data?.name ?? 'Chi tiết CV' },
+                ]}
+            />
 
             {query.isPending ? (
                 <CvDetailSkeleton />
@@ -189,16 +181,30 @@ function CvDetailView({
                 <div className="flex items-center justify-end gap-2 self-stretch lg:self-auto">
                     <Button
                         type="button"
-                        variant="outline"
+                        variant={
+                            cv.processingStatus === 'FAILED'
+                                ? 'destructive'
+                                : 'outline'
+                        }
                         className="rounded-sm !p-4 font-semibold"
                         onClick={onVersions}
                     >
-                        <UploadCloud
-                            className="size-4"
-                            aria-hidden="true"
-                            strokeWidth={2.5}
-                        />
-                        Cập nhật file
+                        {cv.processingStatus === 'FAILED' ? (
+                            <RefreshCw
+                                className="size-4"
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                            />
+                        ) : (
+                            <UploadCloud
+                                className="size-4"
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                            />
+                        )}
+                        {cv.processingStatus === 'FAILED'
+                            ? 'Tải lại tệp'
+                            : 'Cập nhật file'}
                     </Button>
                     <Button
                         type="button"

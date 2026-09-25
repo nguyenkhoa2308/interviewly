@@ -1,6 +1,8 @@
 'use client';
 
 import {
+    ChevronLeft,
+    ChevronRight,
     CloudUpload,
     FilePlus2,
     RefreshCw,
@@ -12,7 +14,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CvCard } from '@/components/cv/cv-card';
@@ -21,6 +23,7 @@ import {
     DeleteCvDialog,
     RenameCvDialog,
     UploadCvDialog,
+    CvVersionsDialog,
 } from '@/components/cv/cv-dialogs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,38 +50,29 @@ const filters: Array<{ value: StatusFilter; label: string }> = [
     { value: 'FAILED', label: 'Thất bại' },
 ];
 const emptyCvCollection: CvListItem[] = [];
-
-export function sortCvs(cvs: CvListItem[], sort: SortOption) {
-    return cvs.toSorted((a, b) => {
-        if (a.isDefault !== b.isDefault) {
-            return a.isDefault ? -1 : 1;
-        }
-        if (sort === 'OLDEST') {
-            return Date.parse(a.createdAt) - Date.parse(b.createdAt);
-        }
-        if (sort === 'NAME_ASC') {
-            return a.name.localeCompare(b.name, 'vi');
-        }
-        if (sort === 'NAME_DESC') {
-            return b.name.localeCompare(a.name, 'vi');
-        }
-        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-    });
-}
+const CVS_PER_PAGE = 8;
 
 export function CvManagementPage() {
     const [status, setStatus] = useState<StatusFilter>('ALL');
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sort, setSort] = useState<SortOption>('NEWEST');
+    const [page, setPage] = useState(1);
     const [uploadOpen, setUploadOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<CvListItem | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<CvListItem | null>(null);
+    const [retryTarget, setRetryTarget] = useState<CvListItem | null>(null);
     const [compareMode, setCompareMode] = useState(false);
-    const [selectedCvIds, setSelectedCvIds] = useState<string[]>([]);
+    const [selectedCvs, setSelectedCvs] = useState<CvListItem[]>([]);
     const [compareOpen, setCompareOpen] = useState(false);
     const defaultMutation = useSetDefaultCv();
-    const cvQuery = useCvManagementCollection();
+    const cvQuery = useCvManagementCollection({
+        page,
+        limit: CVS_PER_PAGE,
+        ...(status !== 'ALL' ? { status } : {}),
+        ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+        sort,
+    });
     const cvs = cvQuery.data?.items ?? emptyCvCollection;
 
     useEffect(() => {
@@ -89,49 +83,37 @@ export function CvManagementPage() {
         return () => window.clearTimeout(timeoutId);
     }, [search]);
 
-    const counts = useMemo(
-        () => ({
+    const counts =
+        cvQuery.data?.counts ??
+        ({
             ALL: cvs.length,
             READY: cvs.filter((cv) => cv.processingStatus === 'READY').length,
             PROCESSING: cvs.filter((cv) => cv.processingStatus === 'PROCESSING')
                 .length,
             FAILED: cvs.filter((cv) => cv.processingStatus === 'FAILED').length,
-        }),
-        [cvs],
-    );
+        } satisfies Record<StatusFilter, number>);
+    const pagination = cvQuery.data?.pagination;
+    const totalPages = Math.max(1, pagination?.totalPages ?? 1);
+    const currentPage = Math.min(page, totalPages);
+    const totalCvs = pagination?.total ?? cvs.length;
 
-    const visibleCvs = useMemo(() => {
-        const normalizedSearch = debouncedSearch.trim().toLocaleLowerCase('vi');
-        const result = cvs.filter((cv) => {
-            const matchesStatus =
-                status === 'ALL' || cv.processingStatus === status;
-            const matchesSearch =
-                !normalizedSearch ||
-                cv.name.toLocaleLowerCase('vi').includes(normalizedSearch) ||
-                cv.originalFilename
-                    .toLocaleLowerCase('vi')
-                    .includes(normalizedSearch);
-            return matchesStatus && matchesSearch;
-        });
-
-        return sortCvs(result, sort);
-    }, [cvs, debouncedSearch, sort, status]);
-
-    const selectedCvs = selectedCvIds
-        .map((id) => cvs.find((cv) => cv.id === id))
-        .filter((cv): cv is CvListItem => Boolean(cv));
+    useEffect(() => {
+        if (!pagination || page <= totalPages) return;
+        const timeoutId = window.setTimeout(() => setPage(totalPages), 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [page, pagination, totalPages]);
 
     const toggleCompareCv = (cv: CvListItem) => {
         if (cv.processingStatus !== 'READY') {
             toast.info('Chỉ có thể so sánh CV đã xử lý xong.');
             return;
         }
-        setSelectedCvIds((current) =>
-            current.includes(cv.id)
-                ? current.filter((id) => id !== cv.id)
+        setSelectedCvs((current) =>
+            current.some((selected) => selected.id === cv.id)
+                ? current.filter((selected) => selected.id !== cv.id)
                 : current.length < 2
-                  ? [...current, cv.id]
-                  : [current[1], cv.id],
+                  ? [...current, cv]
+                  : [current[1], cv],
         );
     };
 
@@ -152,10 +134,10 @@ export function CvManagementPage() {
     return (
         <main className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
             <section className="relative isolate min-h-44 overflow-hidden py-4 sm:min-h-48 lg:min-h-52">
-                <div
+                {/* <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-full bg-[radial-gradient(circle_at_58%_20%,rgba(139,92,246,0.09),transparent_34%),linear-gradient(180deg,rgba(248,247,255,0.78),rgba(255,255,255,0))]"
-                />
+                /> */}
                 <div className="relative z-10 flex min-h-36 max-w-md flex-col items-start justify-center sm:min-h-40 md:max-w-[42%] lg:max-w-[44%] 2xl:max-w-lg">
                     <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
                         Quản lý CV
@@ -195,9 +177,10 @@ export function CvManagementPage() {
                     <div className="min-w-0 flex-1 basis-[440px]">
                         <Select
                             value={status}
-                            onValueChange={(value) =>
-                                setStatus(value as StatusFilter)
-                            }
+                            onValueChange={(value) => {
+                                setStatus(value as StatusFilter);
+                                setPage(1);
+                            }}
                         >
                             <SelectTrigger
                                 className="h-11 w-full rounded-xl bg-slate-50 2xl:hidden"
@@ -249,7 +232,10 @@ export function CvManagementPage() {
                                             ? 'text-primary'
                                             : 'text-slate-500 hover:text-slate-800',
                                     )}
-                                    onClick={() => setStatus(filter.value)}
+                                    onClick={() => {
+                                        setStatus(filter.value);
+                                        setPage(1);
+                                    }}
                                 >
                                     {filter.label}{' '}
                                     <span className="tabular-nums opacity-70">
@@ -267,7 +253,7 @@ export function CvManagementPage() {
                             className="h-11 rounded-sm !font-bold transition-all duration-300"
                             onClick={() => {
                                 setCompareMode((value) => !value);
-                                setSelectedCvIds([]);
+                                setSelectedCvs([]);
                             }}
                         >
                             <GitCompareArrows className="size-4" />
@@ -280,9 +266,10 @@ export function CvManagementPage() {
                             />
                             <Input
                                 value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setSearch(event.target.value);
+                                    setPage(1);
+                                }}
                                 placeholder="Tìm kiếm CV..."
                                 aria-label="Tìm kiếm CV theo tên"
                                 className="h-11 rounded-xl pr-10 pl-11"
@@ -295,6 +282,7 @@ export function CvManagementPage() {
                                     onClick={() => {
                                         setSearch('');
                                         setDebouncedSearch('');
+                                        setPage(1);
                                     }}
                                 >
                                     <X
@@ -306,9 +294,10 @@ export function CvManagementPage() {
                         </div>
                         <Select
                             value={sort}
-                            onValueChange={(value) =>
-                                setSort(value as SortOption)
-                            }
+                            onValueChange={(value) => {
+                                setSort(value as SortOption);
+                                setPage(1);
+                            }}
                         >
                             <SelectTrigger
                                 className="h-11 w-full sm:w-44"
@@ -335,10 +324,10 @@ export function CvManagementPage() {
                         <div className="mb-4 flex flex-col gap-3 rounded-xl border border-violet-100 bg-violet-50/55 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm font-bold text-slate-700">
                                 Chọn đúng 2 CV để so sánh · Đã chọn{' '}
-                                {selectedCvIds.length}/2
+                                {selectedCvs.length}/2
                             </p>
                             <Button
-                                disabled={selectedCvIds.length !== 2}
+                                disabled={selectedCvs.length !== 2}
                                 onClick={() => setCompareOpen(true)}
                                 className="h-11 rounded-sm px-6"
                             >
@@ -363,19 +352,20 @@ export function CvManagementPage() {
                             error={cvQuery.error as ApiError}
                             onRetry={() => void cvQuery.refetch()}
                         />
-                    ) : cvs.length === 0 ? (
+                    ) : counts.ALL === 0 ? (
                         <CvEmptyState onUpload={() => setUploadOpen(true)} />
-                    ) : visibleCvs.length === 0 ? (
+                    ) : cvs.length === 0 ? (
                         <CvNoResults
                             onReset={() => {
                                 setStatus('ALL');
                                 setSearch('');
                                 setDebouncedSearch('');
+                                setPage(1);
                             }}
                         />
                     ) : (
                         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                            {visibleCvs.map((cv) => (
+                            {cvs.map((cv) => (
                                 <CvCard
                                     key={cv.id}
                                     cv={cv}
@@ -385,8 +375,11 @@ export function CvManagementPage() {
                                         void setDefault(target)
                                     }
                                     onDelete={setDeleteTarget}
+                                    onRetryUpload={setRetryTarget}
                                     selectionMode={compareMode}
-                                    selected={selectedCvIds.includes(cv.id)}
+                                    selected={selectedCvs.some(
+                                        (selected) => selected.id === cv.id,
+                                    )}
                                     onToggleSelection={toggleCompareCv}
                                 />
                             ))}
@@ -394,6 +387,61 @@ export function CvManagementPage() {
                                 onUpload={() => setUploadOpen(true)}
                             />
                         </div>
+                    )}
+
+                    {totalPages > 1 && (
+                        <nav
+                            className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"
+                            aria-label="Phân trang danh sách CV"
+                        >
+                            <p className="text-sm font-medium text-slate-500">
+                                Hiển thị{' '}
+                                <span className="font-bold text-slate-700">
+                                    {(currentPage - 1) * CVS_PER_PAGE + 1}–
+                                    {Math.min(
+                                        currentPage * CVS_PER_PAGE,
+                                        totalCvs,
+                                    )}
+                                </span>{' '}
+                                trong {totalCvs} CV
+                            </p>
+                            <div className="flex items-center gap-2 self-end sm:self-auto">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-lg font-bold"
+                                    disabled={currentPage === 1}
+                                    onClick={() =>
+                                        setPage(Math.max(1, currentPage - 1))
+                                    }
+                                >
+                                    <ChevronLeft className="size-4" />
+                                    Trước
+                                </Button>
+                                <span className="min-w-16 text-center text-sm font-bold text-slate-700 tabular-nums">
+                                    {currentPage}/{totalPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-lg font-bold"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() =>
+                                        setPage(
+                                            Math.min(
+                                                totalPages,
+                                                currentPage + 1,
+                                            ),
+                                        )
+                                    }
+                                >
+                                    Sau
+                                    <ChevronRight className="size-4" />
+                                </Button>
+                            </div>
+                        </nav>
                     )}
                 </div>
             </section>
@@ -408,6 +456,11 @@ export function CvManagementPage() {
                 cv={deleteTarget}
                 open={Boolean(deleteTarget)}
                 onOpenChange={(open) => !open && setDeleteTarget(null)}
+            />
+            <CvVersionsDialog
+                cv={retryTarget}
+                open={Boolean(retryTarget)}
+                onOpenChange={(open) => !open && setRetryTarget(null)}
             />
             <CvCompareDialog
                 selected={

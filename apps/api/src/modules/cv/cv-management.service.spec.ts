@@ -10,6 +10,7 @@ import { CVProcessingStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CvService } from './cv.service';
+import { CvListSort } from './dto/list-cvs-query.dto';
 import { PdfParserService } from './pdf-parser/pdf-parser.service';
 
 const USER_ID = '00000000-0000-4000-8000-000000000001';
@@ -36,6 +37,7 @@ describe('CvService management', () => {
             findMany: jest.fn(),
             findFirst: jest.fn(),
             count: jest.fn(),
+            groupBy: jest.fn(),
             updateMany: jest.fn(),
         },
         $transaction: jest.fn(),
@@ -64,6 +66,12 @@ describe('CvService management', () => {
         prisma.cV.findFirst.mockResolvedValue(safeCv);
         prisma.cV.findMany.mockResolvedValue([safeCv]);
         prisma.cV.count.mockResolvedValue(1);
+        prisma.cV.groupBy.mockResolvedValue([
+            {
+                processingStatus: CVProcessingStatus.READY,
+                _count: { _all: 1 },
+            },
+        ]);
         prisma.cV.updateMany.mockResolvedValue({ count: 1 });
         transactionCv.updateMany.mockResolvedValue({ count: 1 });
         prisma.$transaction.mockImplementation(async (input) => {
@@ -80,7 +88,7 @@ describe('CvService management', () => {
         expect(prisma.cV.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: { userId: USER_ID, deletedAt: null },
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
                 skip: 0,
                 take: 20,
             }),
@@ -92,6 +100,18 @@ describe('CvService management', () => {
             limit: 20,
             total: 1,
             totalPages: 1,
+        });
+        expect(result.counts).toEqual({
+            ALL: 1,
+            READY: 1,
+            PROCESSING: 0,
+            FAILED: 0,
+        });
+        expect(prisma.cV.groupBy).toHaveBeenCalledWith({
+            by: ['processingStatus'],
+            where: { userId: USER_ID, deletedAt: null },
+            orderBy: { processingStatus: 'asc' },
+            _count: { _all: true },
         });
     });
 
@@ -110,6 +130,40 @@ describe('CvService management', () => {
                 },
                 skip: 40,
                 take: 20,
+            }),
+        );
+    });
+
+    it('searches and sorts on the database before pagination', async () => {
+        await service.listCvs(USER_ID, {
+            search: 'frontend',
+            sort: CvListSort.NAME_ASC,
+            page: 1,
+            limit: 8,
+        });
+        expect(prisma.cV.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({
+                    userId: USER_ID,
+                    deletedAt: null,
+                    OR: [
+                        {
+                            name: {
+                                contains: 'frontend',
+                                mode: 'insensitive',
+                            },
+                        },
+                        {
+                            originalFilename: {
+                                contains: 'frontend',
+                                mode: 'insensitive',
+                            },
+                        },
+                    ],
+                }),
+                orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+                skip: 0,
+                take: 8,
             }),
         );
     });

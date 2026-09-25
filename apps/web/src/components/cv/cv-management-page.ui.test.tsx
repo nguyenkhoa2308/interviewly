@@ -2,9 +2,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CvManagementPage, sortCvs } from './cv-management-page';
+import { CvManagementPage } from './cv-management-page';
 import { ApiError } from '@/lib/api-error';
-import type { CvListItem } from '@/types/cv';
+import type { CvListItem, CvListParams } from '@/types/cv';
 
 const mocks = vi.hoisted(() => ({
     useCvs: vi.fn(),
@@ -20,9 +20,18 @@ vi.mock('@/hooks/cv', () => ({
     }),
 }));
 vi.mock('@/components/cv/cv-card', () => ({
-    CvCard: ({ cv }: { cv: CvListItem }) => (
+    CvCard: ({
+        cv,
+        onRetryUpload,
+    }: {
+        cv: CvListItem;
+        onRetryUpload: (cv: CvListItem) => void;
+    }) => (
         <article>
             {cv.name} · {cv.processingStatus}
+            {cv.processingStatus === 'FAILED' && (
+                <button onClick={() => onRetryUpload(cv)}>Tải lại tệp</button>
+            )}
         </article>
     ),
 }));
@@ -31,6 +40,13 @@ vi.mock('@/components/cv/cv-dialogs', () => ({
         open ? <div>Dialog tải CV</div> : null,
     RenameCvDialog: () => null,
     DeleteCvDialog: () => null,
+    CvVersionsDialog: ({
+        open,
+        cv,
+    }: {
+        open: boolean;
+        cv: CvListItem | null;
+    }) => (open ? <div>Retry {cv?.name}</div> : null),
 }));
 vi.mock('@/components/cv/cv-compare-dialog', () => ({
     CvCompareDialog: () => null,
@@ -73,6 +89,66 @@ describe('CvManagementPage', () => {
             screen.getByRole('button', { name: /Tải CV lên/ }),
         );
         expect(screen.getByText('Dialog tải CV')).toBeVisible();
+    });
+
+    it('does not render pagination for a single page', () => {
+        render(<CvManagementPage />);
+        expect(
+            screen.queryByRole('navigation', {
+                name: /Phân trang danh sách CV/,
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('paginates the filtered collection with eight CVs per page', async () => {
+        const items = Array.from({ length: 9 }, (_, index) => ({
+            ...item,
+            id: 'cv-' + (index + 1),
+            name: 'CV ' + String(index + 1).padStart(2, '0'),
+            isDefault: false,
+            createdAt: new Date(
+                Date.UTC(2026, 8, 19, 0, 0, index),
+            ).toISOString(),
+        }));
+        mocks.useCvs.mockImplementation((params: CvListParams = {}) =>
+            state({
+                data: {
+                    items:
+                        params.page === 2 ? items.slice(8) : items.slice(0, 8),
+                    counts: {
+                        ALL: 9,
+                        READY: 9,
+                        PROCESSING: 0,
+                        FAILED: 0,
+                    },
+                    pagination: {
+                        page: params.page ?? 1,
+                        limit: 8,
+                        total: 9,
+                        totalPages: 2,
+                    },
+                },
+            }),
+        );
+
+        render(<CvManagementPage />);
+
+        expect(
+            screen.getByRole('navigation', {
+                name: /Phân trang danh sách CV/,
+            }),
+        ).toBeVisible();
+        expect(screen.getByText(/CV 01/)).toBeVisible();
+        expect(screen.queryByText(/CV 09/)).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /Sau/ }));
+
+        expect(screen.getByText(/CV 09/)).toBeVisible();
+        expect(screen.queryByText(/CV 01/)).not.toBeInTheDocument();
+        expect(screen.getByText('2/2')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: /Tải lên CV mới/ }),
+        ).toBeVisible();
     });
 
     it('renders a layout skeleton while loading', () => {
@@ -124,19 +200,29 @@ describe('CvManagementPage', () => {
             processingStatus: 'FAILED' as const,
             isDefault: false,
         };
-        mocks.useCvs.mockReturnValue(
-            state({
+        mocks.useCvs.mockImplementation((params: CvListParams = {}) => {
+            const allItems = [item, processing, failed];
+            const items = params.status
+                ? allItems.filter((cv) => cv.processingStatus === params.status)
+                : allItems;
+            return state({
                 data: {
-                    items: [item, processing, failed],
+                    items,
+                    counts: {
+                        ALL: 3,
+                        READY: 1,
+                        PROCESSING: 1,
+                        FAILED: 1,
+                    },
                     pagination: {
                         page: 1,
-                        limit: 3,
-                        total: 3,
+                        limit: 8,
+                        total: items.length,
                         totalPages: 1,
                     },
                 },
-            }),
-        );
+            });
+        });
         render(<CvManagementPage />);
 
         expect(
@@ -170,19 +256,36 @@ describe('CvManagementPage', () => {
             processingStatus: 'FAILED' as const,
             isDefault: false,
         };
-        mocks.useCvs.mockReturnValue(
-            state({
+        mocks.useCvs.mockImplementation((params: CvListParams = {}) => {
+            const allItems = [item, failed];
+            const normalizedSearch = params.search?.toLowerCase() ?? '';
+            const items = normalizedSearch
+                ? allItems.filter(
+                      (cv) =>
+                          cv.name.toLowerCase().includes(normalizedSearch) ||
+                          cv.originalFilename
+                              .toLowerCase()
+                              .includes(normalizedSearch),
+                  )
+                : allItems;
+            return state({
                 data: {
-                    items: [item, failed],
+                    items,
+                    counts: {
+                        ALL: 2,
+                        READY: 1,
+                        PROCESSING: 0,
+                        FAILED: 1,
+                    },
                     pagination: {
                         page: 1,
-                        limit: 2,
-                        total: 2,
+                        limit: 8,
+                        total: items.length,
                         totalPages: 1,
                     },
                 },
-            }),
-        );
+            });
+        });
         render(<CvManagementPage />);
 
         await userEvent.type(
@@ -202,46 +305,40 @@ describe('CvManagementPage', () => {
         expect(screen.getByText('Dialog tải CV')).toBeVisible();
     });
 
-    it('sorts the collection by name', () => {
-        const cvA = {
+    it('opens the version upload dialog from a failed CV', async () => {
+        const failed = {
             ...item,
-            id: 'cv-a',
-            name: 'CV Alpha',
+            id: 'cv-failed',
+            name: 'CV lỗi',
+            processingStatus: 'FAILED' as const,
             isDefault: false,
         };
-        const cvZ = {
-            ...item,
-            id: 'cv-z',
-            name: 'CV Zeta',
-            isDefault: false,
-        };
-        expect(sortCvs([cvZ, cvA], 'NAME_ASC').map((cv) => cv.name)).toEqual([
-            'CV Alpha',
-            'CV Zeta',
-        ]);
-    });
-
-    it('always keeps the default CV first before applying the selected sort', () => {
-        const newest = {
-            ...item,
-            id: 'cv-new',
-            name: 'CV mới',
-            isDefault: false,
-            createdAt: '2026-09-20T00:00:00.000Z',
-        };
-        const defaultCv = {
-            ...item,
-            id: 'cv-default',
-            name: 'CV mặc định',
-            createdAt: '2026-09-01T00:00:00.000Z',
-        };
-
-        expect(sortCvs([newest, defaultCv], 'NEWEST')[0]?.id).toBe(
-            'cv-default',
+        mocks.useCvs.mockReturnValue(
+            state({
+                data: {
+                    items: [failed],
+                    counts: {
+                        ALL: 1,
+                        READY: 0,
+                        PROCESSING: 0,
+                        FAILED: 1,
+                    },
+                    pagination: {
+                        page: 1,
+                        limit: 8,
+                        total: 1,
+                        totalPages: 1,
+                    },
+                },
+            }),
         );
-        expect(sortCvs([newest, defaultCv], 'OLDEST')[0]?.id).toBe(
-            'cv-default',
+
+        render(<CvManagementPage />);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tải lại tệp' }),
         );
+
+        expect(screen.getByText('Retry CV lỗi')).toBeVisible();
     });
 
     it('renders a safe error and retries', async () => {

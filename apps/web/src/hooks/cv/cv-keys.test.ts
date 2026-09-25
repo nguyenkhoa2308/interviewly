@@ -26,8 +26,21 @@ test('generates different list keys for different statuses', () =>
         cvKeys.list({ status: 'READY' }),
         cvKeys.list({ status: 'FAILED' }),
     ));
-test('keeps the management collection inside the list namespace', () =>
-    assert.deepEqual(cvKeys.management(), ['cvs', 'list', 'management']));
+test('includes server search and sort in the list cache key', () =>
+    assert.deepEqual(
+        normalizeCvListParams({
+            page: 2,
+            limit: 8,
+            search: 'frontend',
+            sort: 'NAME_ASC',
+        }),
+        {
+            page: 2,
+            limit: 8,
+            search: 'frontend',
+            sort: 'NAME_ASC',
+        },
+    ));
 test('scopes a detail key to its CV id', () =>
     assert.deepEqual(cvKeys.detail('cv-123'), ['cvs', 'detail', 'cv-123']));
 test('scopes latest analysis beneath its CV detail', () =>

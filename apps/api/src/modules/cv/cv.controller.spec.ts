@@ -249,6 +249,7 @@ describe('CvController', () => {
                 .expect(200);
 
             expect(cvService.listCvs).toHaveBeenCalledWith(USER_ID, {
+                sort: 'NEWEST',
                 page: 1,
                 limit: 20,
             });
@@ -266,6 +267,8 @@ describe('CvController', () => {
             '?page=abc',
             '?limit=0',
             '?limit=101',
+            '?sort=INVALID',
+            '?search=' + 'a'.repeat(151),
         ])('rejects invalid list query %s', async (query) => {
             await request(app.getHttpServer())
                 .get(ENDPOINT + query)
@@ -279,6 +282,7 @@ describe('CvController', () => {
                 .expect(200);
             expect(cvService.listCvs).toHaveBeenCalledWith(USER_ID, {
                 status: 'READY',
+                sort: 'NEWEST',
                 page: 2,
                 limit: 10,
             });

@@ -9,6 +9,7 @@ import { PDF_PARSER_FACTORY } from './pdf-parser/pdf-parser.tokens';
 import { CvAnalysisModule } from './cv-analysis/cv-analysis.module';
 import { AiModule } from '../ai/ai.module';
 import { CvStructureService } from './cv-structure/cv-structure.service';
+import { CvStaleProcessingRecoveryService } from './cv-stale-processing-recovery.service';
 
 @Module({
     imports: [AuthModule, StorageModule, AiModule, CvAnalysisModule],
@@ -21,6 +22,7 @@ import { CvStructureService } from './cv-structure/cv-structure.service';
         },
         PdfParserService,
         CvStructureService,
+        CvStaleProcessingRecoveryService,
         CvService,
     ],
     exports: [CvService],

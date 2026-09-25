@@ -1,7 +1,6 @@
 'use client';
 
 import {
-    ArrowLeft,
     BrainCircuit,
     CircleAlert,
     Clock3,
@@ -20,6 +19,7 @@ import {
     getCvAnalysisErrorMessage,
 } from '@/components/cv/cv-analysis-section';
 import { Button } from '@/components/ui/button';
+import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
 import {
     useAnalyzeCv,
     useCv,
@@ -60,12 +60,17 @@ export function CvAnalysisResultPage({ cvId }: { cvId: string }) {
 
     return (
         <main className="mx-auto w-full max-w-[1600px] min-w-0 px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
-            <Button asChild variant="ghost" className="-ml-3 text-slate-600">
-                <Link href={`/cv/${cvId}`} className="!text-primary !font-bold">
-                    <ArrowLeft className="size-4" aria-hidden="true" />
-                    Quay lại CV
-                </Link>
-            </Button>
+            <PageBreadcrumb
+                items={[
+                    { label: 'CV của bạn', href: '/cv' },
+                    {
+                        label: cvQuery.data?.name ?? 'Chi tiết CV',
+                        href: `/cv/${cvId}`,
+                    },
+                    { label: 'Kết quả phân tích' },
+                ]}
+                className="mb-5"
+            />
 
             {cvQuery.isPending || analysisQuery.isPending ? (
                 <AnalysisPageSkeleton />

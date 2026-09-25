@@ -57,6 +57,8 @@ export interface UploadedCv {
 
 export interface CvListParams {
     status?: CvProcessingStatus;
+    search?: string;
+    sort?: 'NEWEST' | 'OLDEST' | 'NAME_ASC' | 'NAME_DESC';
     page?: number;
     limit?: number;
 }
@@ -70,6 +72,12 @@ export interface CvPagination {
 
 export interface CvListResponse {
     items: CvListItem[];
+    counts?: {
+        ALL: number;
+        READY: number;
+        PROCESSING: number;
+        FAILED: number;
+    };
     pagination: CvPagination;
 }
 

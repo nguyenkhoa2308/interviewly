@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { cvKeys, normalizeCvListParams } from '@/hooks/cv/cv-keys';
 import {
@@ -75,32 +75,12 @@ export function useCvComparison(leftCvId?: string, rightCvId?: string) {
     });
 }
 
-export function useCvManagementCollection() {
+export function useCvManagementCollection(params: CvListParams) {
+    const normalizedParams = normalizeCvListParams(params);
     return useQuery<CvListResponse, ApiError>({
-        queryKey: cvKeys.management(),
-        queryFn: async () => {
-            const firstPage = await getCvs({ page: 1, limit: 100 });
-            const remainingPages = Array.from(
-                { length: Math.max(0, firstPage.pagination.totalPages - 1) },
-                (_, index) => index + 2,
-            );
-            const remaining = await Promise.all(
-                remainingPages.map((page) => getCvs({ page, limit: 100 })),
-            );
-
-            return {
-                items: [
-                    ...firstPage.items,
-                    ...remaining.flatMap((response) => response.items),
-                ],
-                pagination: {
-                    page: 1,
-                    limit: firstPage.pagination.total,
-                    total: firstPage.pagination.total,
-                    totalPages: firstPage.pagination.total > 0 ? 1 : 0,
-                },
-            };
-        },
+        queryKey: cvKeys.list(normalizedParams),
+        queryFn: () => getCvs(normalizedParams),
+        placeholderData: keepPreviousData,
         retry: shouldRetryCvQuery,
         meta: { requiresAuth: true },
     });

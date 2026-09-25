@@ -14,7 +14,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { getCvStorageKey } from './constants/cv.constant';
 import { UploadCvDto } from './dto/upload-cv.dto';
-import { ListCvsQueryDto } from './dto/list-cvs-query.dto';
+import { CvListSort, ListCvsQueryDto } from './dto/list-cvs-query.dto';
 import { RenameCvDto } from './dto/rename-cv.dto';
 import { PdfParserService } from './pdf-parser/pdf-parser.service';
 import { PdfParsingException } from './pdf-parser/pdf-parser.types';
@@ -77,27 +77,83 @@ export class CvService {
     ) {}
 
     async listCvs(userId: string, query: ListCvsQueryDto) {
-        const where = {
+        const baseWhere: Prisma.CVWhereInput = {
             userId,
             deletedAt: null,
+        };
+        const where: Prisma.CVWhereInput = {
+            ...baseWhere,
             ...(query.status && { processingStatus: query.status }),
+            ...(query.search?.trim() && {
+                OR: [
+                    {
+                        name: {
+                            contains: query.search.trim(),
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        originalFilename: {
+                            contains: query.search.trim(),
+                            mode: 'insensitive',
+                        },
+                    },
+                ],
+            }),
         };
         const skip = (query.page - 1) * query.limit;
+        const selectedOrderBy: Prisma.CVOrderByWithRelationInput =
+            query.sort === CvListSort.OLDEST
+                ? { createdAt: 'asc' }
+                : query.sort === CvListSort.NAME_ASC
+                  ? { name: 'asc' }
+                  : query.sort === CvListSort.NAME_DESC
+                    ? { name: 'desc' }
+                    : { createdAt: 'desc' };
 
         try {
-            const [items, total] = await this.prisma.$transaction([
-                this.prisma.cV.findMany({
-                    where,
-                    select: CV_LIST_SELECT,
-                    orderBy: { createdAt: 'desc' },
-                    skip,
-                    take: query.limit,
-                }),
-                this.prisma.cV.count({ where }),
-            ]);
+            const [items, total, statusGroups] = await this.prisma.$transaction(
+                [
+                    this.prisma.cV.findMany({
+                        where,
+                        select: CV_LIST_SELECT,
+                        orderBy: [{ isDefault: 'desc' }, selectedOrderBy],
+                        skip,
+                        take: query.limit,
+                    }),
+                    this.prisma.cV.count({ where }),
+                    this.prisma.cV.groupBy({
+                        by: ['processingStatus'],
+                        where: baseWhere,
+                        orderBy: { processingStatus: 'asc' },
+                        _count: { _all: true },
+                    }),
+                ],
+            );
+            const counts = {
+                ALL: 0,
+                READY: 0,
+                PROCESSING: 0,
+                FAILED: 0,
+            };
+            for (const group of statusGroups) {
+                const groupCount =
+                    typeof group._count === 'object'
+                        ? (group._count._all ?? 0)
+                        : 0;
+                counts.ALL += groupCount;
+                if (
+                    group.processingStatus === CVProcessingStatus.READY ||
+                    group.processingStatus === CVProcessingStatus.PROCESSING ||
+                    group.processingStatus === CVProcessingStatus.FAILED
+                ) {
+                    counts[group.processingStatus] = groupCount;
+                }
+            }
 
             return {
                 items,
+                counts,
                 pagination: {
                     page: query.page,
                     limit: query.limit,

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CvCard } from './cv-card';
@@ -21,6 +22,7 @@ const baseCv: CvListItem = {
 };
 
 function renderCard(cv: CvListItem = baseCv) {
+    const onRetryUpload = vi.fn();
     render(
         <CvCard
             cv={cv}
@@ -28,8 +30,10 @@ function renderCard(cv: CvListItem = baseCv) {
             onRename={vi.fn()}
             onSetDefault={vi.fn()}
             onDelete={vi.fn()}
+            onRetryUpload={onRetryUpload}
         />,
     );
+    return { onRetryUpload };
 }
 
 describe('CvCard', () => {
@@ -58,5 +62,20 @@ describe('CvCard', () => {
     it('does not render the default badge for a non-default CV', () => {
         renderCard({ ...baseCv, isDefault: false });
         expect(screen.queryByText('Mặc định')).not.toBeInTheDocument();
+    });
+
+    it('offers file re-upload for a failed CV', async () => {
+        const failedCv = {
+            ...baseCv,
+            processingStatus: 'FAILED' as const,
+        };
+        const { onRetryUpload } = renderCard(failedCv);
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tải lại tệp' }),
+        );
+
+        expect(onRetryUpload).toHaveBeenCalledWith(failedCv);
+        expect(screen.queryByText('Xem chi tiết')).not.toBeInTheDocument();
     });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CalendarDays, Check, Star } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, RefreshCw, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -15,6 +15,7 @@ interface CvCardProps {
     onRename: (cv: CvListItem) => void;
     onSetDefault: (cv: CvListItem) => void;
     onDelete: (cv: CvListItem) => void;
+    onRetryUpload: (cv: CvListItem) => void;
     selectionMode?: boolean;
     selected?: boolean;
     onToggleSelection?: (cv: CvListItem) => void;
@@ -26,6 +27,7 @@ export function CvCard({
     onRename,
     onSetDefault,
     onDelete,
+    onRetryUpload,
     selectionMode = false,
     selected = false,
     onToggleSelection,
@@ -145,10 +147,21 @@ export function CvCard({
                         <span />
                     )}
                 </div>
-                <div className="text-primary flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 text-sm font-bold transition-colors group-hover:bg-violet-50/70">
-                    Xem chi tiết
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                </div>
+                {cv.processingStatus === 'FAILED' ? (
+                    <button
+                        type="button"
+                        className="relative z-20 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 text-sm font-bold text-red-700 transition-colors hover:bg-red-100"
+                        onClick={() => onRetryUpload(cv)}
+                    >
+                        <RefreshCw className="size-4" aria-hidden="true" />
+                        Tải lại tệp
+                    </button>
+                ) : (
+                    <div className="text-primary flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 text-sm font-bold transition-colors group-hover:bg-violet-50/70">
+                        Xem chi tiết
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                    </div>
+                )}
             </div>
         </article>
     );

@@ -342,6 +342,27 @@ describe('CvDetailShell', () => {
         expect(screen.getByText('Lịch sử phiên bản test')).toBeVisible();
     });
 
+    it('offers file re-upload from a failed CV detail', async () => {
+        mocks.useCv.mockReturnValue(
+            query({
+                data: {
+                    ...readyCv,
+                    processingStatus: 'FAILED',
+                    extractedText: null,
+                },
+            }),
+        );
+
+        render(<CvDetailShell cvId="cv-123" />);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tải lại tệp' }),
+        );
+
+        expect(screen.getByText('Lịch sử phiên bản test')).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Cập nhật file' }),
+        ).not.toBeInTheDocument();
+    });
 
     it('sets the current CV as default through the shared mutation', async () => {
         render(<CvDetailShell cvId="cv-123" />);

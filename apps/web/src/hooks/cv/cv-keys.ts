@@ -5,7 +5,6 @@ export const cvKeys = {
     lists: () => [...cvKeys.all, 'list'] as const,
     list: (params: CvListParams = {}) =>
         [...cvKeys.lists(), normalizeCvListParams(params)] as const,
-    management: () => [...cvKeys.lists(), 'management'] as const,
     details: () => [...cvKeys.all, 'detail'] as const,
     detail: (cvId: string) => [...cvKeys.details(), cvId] as const,
     versions: (cvId: string) => [...cvKeys.detail(cvId), 'versions'] as const,
@@ -37,10 +36,12 @@ export const cvKeys = {
 export function normalizeCvListParams(
     params: CvListParams = {},
 ): Required<Pick<CvListParams, 'page' | 'limit'>> &
-    Pick<CvListParams, 'status'> {
+    Pick<CvListParams, 'status' | 'search' | 'sort'> {
     return {
         page: params.page ?? 1,
         limit: params.limit ?? 20,
         ...(params.status ? { status: params.status } : {}),
+        ...(params.search ? { search: params.search } : {}),
+        ...(params.sort ? { sort: params.sort } : {}),
     };
 }
