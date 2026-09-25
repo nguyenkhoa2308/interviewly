@@ -13,6 +13,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { UsersModule } from './modules/users/users.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { CvModule } from './modules/cv/cv.module';
+import { JobDescriptionModule } from './modules/job-description/job-description.module';
 
 @Module({
     imports: [
@@ -31,6 +32,7 @@ import { CvModule } from './modules/cv/cv.module';
         UsersModule,
         SettingsModule,
         CvModule,
+        JobDescriptionModule,
     ],
     controllers: [AppController],
     providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

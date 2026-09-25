@@ -144,6 +144,14 @@ enum CVAnalysisStatus {
   @@map("cv_analysis_status_enum")
 }
 
+enum JDAnalysisStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("jd_analysis_status_enum")
+}
+
 model User {
   id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String     @unique @db.VarChar(255)
@@ -167,6 +175,7 @@ model User {
   skills              UserSkill[]
   emailVerifications  EmailVerification[]
   cvs                 CV[]
+  jobDescriptions     JobDescription[]
 
   @@index([deletedAt])
   @@map("users")
@@ -419,4 +428,50 @@ model CVAnalysis {
   @@index([cvVersionId, createdAt(sort: Desc)])
   @@index([cvVersionId, status])
   @@map("cv_analyses")
+}
+
+model JobDescription {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String    @db.VarChar(150)
+  company   String?   @db.VarChar(150)
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses JDAnalysis[]
+
+  @@index([userId, deletedAt, createdAt(sort: Desc)])
+  @@map("job_descriptions")
+}
+
+model JDAnalysis {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobDescriptionId String           @map("job_description_id") @db.Uuid
+  status           JDAnalysisStatus @default(PROCESSING)
+  detectedRole     String?          @map("detected_role") @db.VarChar(150)
+  seniority        String?          @db.VarChar(100)
+  summary          String?
+  requiredSkills   Json?            @map("required_skills")
+  preferredSkills  Json?            @map("preferred_skills")
+  responsibilities Json?
+  requirements     Json?
+  keywords         Json?
+  interviewFocus   Json?            @map("interview_focus")
+  insights         Json?
+  modelProvider    String?          @map("model_provider") @db.VarChar(100)
+  modelName        String?          @map("model_name") @db.VarChar(150)
+  promptVersion    String?          @map("prompt_version") @db.VarChar(50)
+  errorCode        String?          @map("error_code") @db.VarChar(100)
+  errorMessage     String?          @map("error_message")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt      DateTime?        @map("completed_at") @db.Timestamptz(6)
+
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([jobDescriptionId, createdAt(sort: Desc)])
+  @@index([jobDescriptionId, status])
+  @@map("jd_analyses")
 }

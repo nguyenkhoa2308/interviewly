@@ -51,13 +51,18 @@ export function ConfirmDialog({
                 </div>
                 <div className="mt-6 flex justify-end gap-3">
                     <DialogClose asChild>
-                        <Button type="button" variant="outline">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-sm font-bold"
+                        >
                             Quay lại
                         </Button>
                     </DialogClose>
                     <Button
                         type="button"
                         variant={destructive ? 'destructive' : 'default'}
+                        className="!bg-destructive !border-destructive hover:bg-destructive/80 rounded-sm font-bold text-white hover:text-white"
                         onClick={() => {
                             onConfirm();
                             onOpenChange(false);
