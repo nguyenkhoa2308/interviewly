@@ -43,12 +43,15 @@ export function ProfilePageContent() {
     return (
         <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
             <div className="space-y-5">
-                <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-                    <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">
+                <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="max-w-2xl">
+                        <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
+                            Hồ sơ cá nhân
+                        </p>
+                        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                             Hồ sơ của bạn
                         </h1>
-                        <p className="mt-1 text-[15px] font-medium text-slate-500">
+                        <p className="mt-2 max-w-lg text-sm leading-6 font-medium text-slate-500 sm:text-[15px]">
                             {isEditing
                                 ? 'Cập nhật thông tin cá nhân và hồ sơ nghề nghiệp.'
                                 : 'Quản lý thông tin cá nhân và định hướng nghề nghiệp.'}
