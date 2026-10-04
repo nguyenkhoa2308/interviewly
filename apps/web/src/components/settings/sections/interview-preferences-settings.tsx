@@ -16,6 +16,7 @@ import {
 } from '@/components/settings/settings-controls';
 import { SettingsRow } from '@/components/settings/settings-row';
 import { SettingsSection } from '@/components/settings/settings-section';
+import { INTERVIEW_TYPE_OPTIONS } from '@/constants/interview-options';
 import { useUpdateSettings } from '@/hooks/settings';
 import type {
     Difficulty,
@@ -30,14 +31,6 @@ const difficultyOptions = [
     { value: 'MEDIUM', label: 'Trung bình' },
     { value: 'HARD', label: 'Khó' },
     { value: 'ADAPTIVE', label: 'Thích ứng' },
-] as const;
-const interviewTypeOptions = [
-    { value: 'HR', label: 'Nhân sự' },
-    { value: 'BEHAVIORAL', label: 'Hành vi' },
-    { value: 'TECHNICAL', label: 'Kỹ thuật' },
-    { value: 'CODING', label: 'Lập trình' },
-    { value: 'SYSTEM_DESIGN', label: 'Thiết kế hệ thống' },
-    { value: 'FULL', label: 'Phỏng vấn đầy đủ' },
 ] as const;
 const interviewerStyleOptions = [
     { value: 'FRIENDLY', label: 'Thân thiện' },
@@ -138,7 +131,7 @@ export function InterviewPreferencesSettings({
                 <SettingsSelect
                     label="Loại phỏng vấn mặc định"
                     value={interviewType}
-                    options={interviewTypeOptions}
+                    options={INTERVIEW_TYPE_OPTIONS}
                     disabled={isPending('defaultInterviewType')}
                     loading={isPending('defaultInterviewType')}
                     onValueChange={(value) =>

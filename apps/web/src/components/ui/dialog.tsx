@@ -49,10 +49,12 @@ function DialogContent({
     children,
     showCloseButton = true,
     closeButtonDisabled = false,
+    mobileContentPosition = 'center',
     ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean;
     closeButtonDisabled?: boolean;
+    mobileContentPosition?: 'center' | 'start';
 }) {
     return (
         <DialogPortal>
@@ -65,7 +67,14 @@ function DialogContent({
                 )}
                 {...props}
             >
-                <div className="contents max-sm:flex max-sm:min-h-full max-sm:flex-col max-sm:justify-center">
+                <div
+                    className={cn(
+                        'contents max-sm:flex max-sm:min-h-full max-sm:flex-col',
+                        mobileContentPosition === 'start'
+                            ? 'max-sm:justify-start'
+                            : 'max-sm:justify-center',
+                    )}
+                >
                     {children}
                 </div>
                 {showCloseButton && (

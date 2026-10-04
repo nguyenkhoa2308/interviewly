@@ -1,0 +1,1 @@
+ALTER TYPE "interview_status_enum" ADD VALUE IF NOT EXISTS 'DRAFT' BEFORE 'PLANNING';

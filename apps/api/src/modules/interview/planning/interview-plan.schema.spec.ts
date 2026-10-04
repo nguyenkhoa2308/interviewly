@@ -1,0 +1,3 @@
+﻿import { InterviewPlanResultSchema } from './interview-plan.schema';
+import { makeValidTechnicalPlan } from './interview-plan.test-fixtures';
+describe('InterviewPlanResultSchema',()=>{it('accepts a complete question blueprint',()=>expect(InterviewPlanResultSchema.safeParse(makeValidTechnicalPlan()).success).toBe(true));it('rejects an unsupported section',()=>{const plan=makeValidTechnicalPlan() as unknown as {sections:Array<{type:string}>};plan.sections[1].type='SYSTEM_DESIGN';expect(InterviewPlanResultSchema.safeParse(plan).success).toBe(false)});it('rejects a planned question without actual wording',()=>{const plan=makeValidTechnicalPlan();plan.sections[1].questions[0].suggestedQuestion='';expect(InterviewPlanResultSchema.safeParse(plan).success).toBe(false)})});

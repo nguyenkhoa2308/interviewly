@@ -7,7 +7,13 @@ import { HttpExceptionFilter } from './http-exception.filter';
 describe('HttpExceptionFilter', () => {
     function createHost(response: Partial<Response>) {
         return {
-            switchToHttp: () => ({ getResponse: () => response }),
+            switchToHttp: () => ({
+                getResponse: () => response,
+                getRequest: () => ({
+                    method: 'GET',
+                    originalUrl: '/test',
+                }),
+            }),
         } as unknown as ArgumentsHost;
     }
 

@@ -132,8 +132,18 @@ export function CvJdMatchResultPage({ id }: { id: string }) {
                         />
                     </div>
                 </div>
-                <Button
-                    className="h-11 self-start rounded-lg px-5 font-bold"
+                <div className="flex flex-wrap gap-3 lg:justify-end">
+                    {match.status === 'COMPLETED' && (
+                        <Button asChild className="h-11 rounded-lg px-5 font-bold">
+                            <Link href={`/interviews/new?matchId=${match.id}`}>
+                                <CalendarDays className="size-4" />
+                                Tạo phỏng vấn
+                            </Link>
+                        </Button>
+                    )}
+                    <Button
+                    variant="outline"
+                    className="h-11 rounded-lg px-5 font-bold"
                     disabled={create.isPending}
                     onClick={rematch}
                 >
@@ -143,7 +153,8 @@ export function CvJdMatchResultPage({ id }: { id: string }) {
                         <Sparkles className="size-4" />
                     )}
                     {create.isPending ? 'Đang đối chiếu...' : 'Đối chiếu lại'}
-                </Button>
+                    </Button>
+                </div>
             </header>
 
             {match.status === 'COMPLETED' ? (

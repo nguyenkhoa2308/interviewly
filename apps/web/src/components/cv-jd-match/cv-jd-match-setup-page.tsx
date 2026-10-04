@@ -18,22 +18,21 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { SearchableMatchSource } from '@/components/cv-jd-match/searchable-match-source';
+import { MatchHistoryPagination as HistoryPagination } from '@/components/cv-jd-match/match-history-pagination';
 import {
     useCreateCvJdMatch,
     useCvJdMatches,
     useMatchOptions,
 } from '@/hooks/cv-jd-match/use-cv-jd-matches';
 import { cn } from '@/lib/utils';
-import type {
-    CvJdMatchSummary,
-    MatchOptions,
-} from '@/types/cv-jd-match';
+import type { CvJdMatchSummary, MatchOptions } from '@/types/cv-jd-match';
 
 export function CvJdMatchSetupPage() {
     const router = useRouter();
     const params = useSearchParams();
     const options = useMatchOptions();
-    const history = useCvJdMatches({ page: 1, limit: 5 });
+    const [historyPage, setHistoryPage] = useState(1);
+    const history = useCvJdMatches({ page: historyPage, limit: 5 });
     const create = useCreateCvJdMatch();
     const [cvId, setCvId] = useState('');
     const [jdId, setJdId] = useState('');
@@ -134,7 +133,10 @@ export function CvJdMatchSetupPage() {
                                 vectorEffect="non-scaling-stroke"
                             />
                         </svg>
-                        <ArrowDown className="text-primary absolute top-[30px] left-1/2 size-5 -translate-x-1/2" strokeWidth={2.75} />
+                        <ArrowDown
+                            className="text-primary absolute top-[30px] left-1/2 size-5 -translate-x-1/2"
+                            strokeWidth={2.75}
+                        />
                     </div>
 
                     <div className="relative z-10 mt-5 flex flex-col items-center text-center lg:-mt-3">
@@ -158,13 +160,18 @@ export function CvJdMatchSetupPage() {
                         </Button>
                         <p className="mt-2 text-sm font-medium text-slate-500">
                             AI sẽ đánh giá mức độ phù hợp dựa trên bằng chứng
-                            trong CV và yêu cầu của JD. Điểm phù hợp không phải xác suất được tuyển.
+                            trong CV và yêu cầu của JD. Điểm phù hợp không phải
+                            xác suất được tuyển.
                         </p>
                     </div>
                 </section>
             )}
 
-            <RecentMatches query={history} />
+            <RecentMatches
+                query={history}
+                page={historyPage}
+                onPageChange={setHistoryPage}
+            />
         </main>
     );
 }
@@ -312,7 +319,9 @@ function SourceSelector(props: SourceSelectorProps) {
                         href={analysisHref}
                         className="text-primary hidden shrink-0 items-center gap-1 text-xs font-bold sm:flex"
                     >
-                        {props.selected.eligible ? 'Xem phân tích' : 'Phân tích ngay'}
+                        {props.selected.eligible
+                            ? 'Xem phân tích'
+                            : 'Phân tích ngay'}
                         <ChevronRight className="size-4" />
                     </Link>
                 )}
@@ -323,8 +332,12 @@ function SourceSelector(props: SourceSelectorProps) {
 
 function RecentMatches({
     query,
+    page,
+    onPageChange,
 }: {
     query: ReturnType<typeof useCvJdMatches>;
+    page: number;
+    onPageChange: (page: number) => void;
 }) {
     return (
         <section className="mt-8 border-t border-violet-100 pt-6">
@@ -343,6 +356,16 @@ function RecentMatches({
                     </div>
                 </div>
             </div>
+
+            {query.data && query.data.pagination.totalPages > 1 && (
+                <HistoryPagination
+                    page={page}
+                    total={query.data.pagination.total}
+                    totalPages={query.data.pagination.totalPages}
+                    pending={query.isFetching}
+                    onPageChange={onPageChange}
+                />
+            )}
 
             {query.isPending ? (
                 <div className="h-52 animate-pulse rounded-2xl bg-slate-100" />
@@ -366,11 +389,19 @@ function RecentMatches({
                             <thead className="border-b border-violet-100 bg-violet-50/70 text-xs font-extrabold tracking-wide text-slate-500">
                                 <tr>
                                     <th className="w-[22%] px-4 py-3">CV</th>
-                                    <th className="w-[25%] px-4 py-3">Mô tả công việc</th>
+                                    <th className="w-[25%] px-4 py-3">
+                                        Mô tả công việc
+                                    </th>
                                     <th className="w-[13%] px-4 py-3">Điểm</th>
-                                    <th className="w-[15%] px-4 py-3">Trạng thái</th>
-                                    <th className="w-[15%] px-4 py-3">Thời gian</th>
-                                    <th className="w-[10%] px-4 py-3 text-right">Thao tác</th>
+                                    <th className="w-[15%] px-4 py-3">
+                                        Trạng thái
+                                    </th>
+                                    <th className="w-[15%] px-4 py-3">
+                                        Thời gian
+                                    </th>
+                                    <th className="w-[10%] px-4 py-3 text-right">
+                                        Thao tác
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -403,12 +434,46 @@ function RecentMatches({
 function HistoryRow({ item }: { item: CvJdMatchSummary }) {
     return (
         <tr className="group text-sm text-slate-600 transition-colors hover:bg-violet-50/35">
-            <td className="px-5 py-4"><CellTitle icon={FileText} title={item.cvNameSnapshot} subtitle={`Bản ${item.cvVersionNumber}`} /></td>
-            <td className="px-5 py-4"><CellTitle icon={BriefcaseBusiness} title={item.jdTitleSnapshot} subtitle={item.jdCompanySnapshot || 'Chưa có công ty'} /></td>
-            <td className="px-5 py-4"><Score value={item.status === 'COMPLETED' ? item.matchScore : null} /></td>
-            <td className="px-5 py-4"><Status status={item.status} /></td>
-            <td className="px-5 py-4 text-xs font-semibold leading-5 text-slate-500">{formatDateTime(item.createdAt)}</td>
-            <td className="px-5 py-4 text-right">{item.status === 'COMPLETED' ? <Link href={`/matching/${item.id}`} className="text-primary inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-lg border border-violet-200 bg-white px-3 font-bold transition hover:bg-violet-50">Xem kết quả<ChevronRight className="size-4"/></Link> : <span className="text-xs text-slate-400">Không khả dụng</span>}</td>
+            <td className="px-5 py-4">
+                <CellTitle
+                    icon={FileText}
+                    title={item.cvNameSnapshot}
+                    subtitle={`Bản ${item.cvVersionNumber}`}
+                />
+            </td>
+            <td className="px-5 py-4">
+                <CellTitle
+                    icon={BriefcaseBusiness}
+                    title={item.jdTitleSnapshot}
+                    subtitle={item.jdCompanySnapshot || 'Chưa có công ty'}
+                />
+            </td>
+            <td className="px-5 py-4">
+                <Score
+                    value={item.status === 'COMPLETED' ? item.matchScore : null}
+                />
+            </td>
+            <td className="px-5 py-4">
+                <Status status={item.status} />
+            </td>
+            <td className="px-5 py-4 text-xs leading-5 font-semibold text-slate-500">
+                {formatDateTime(item.createdAt)}
+            </td>
+            <td className="px-5 py-4 text-right">
+                {item.status === 'COMPLETED' ? (
+                    <Link
+                        href={`/matching/${item.id}`}
+                        className="text-primary inline-flex min-h-9 items-center gap-1 rounded-lg border border-violet-200 bg-white px-3 font-bold whitespace-nowrap transition hover:bg-violet-50"
+                    >
+                        Xem kết quả
+                        <ChevronRight className="size-4" />
+                    </Link>
+                ) : (
+                    <span className="text-xs text-slate-400">
+                        Không khả dụng
+                    </span>
+                )}
+            </td>
         </tr>
     );
 }
@@ -416,13 +481,63 @@ function HistoryRow({ item }: { item: CvJdMatchSummary }) {
 function HistoryCard({ item }: { item: CvJdMatchSummary }) {
     return (
         <article className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-extrabold text-slate-900">{item.cvNameSnapshot}</p><p className="mt-1 truncate text-sm text-slate-500">{item.jdTitleSnapshot}</p></div><Score value={item.status === 'COMPLETED' ? item.matchScore : null}/></div>
-            <div className="mt-4 flex items-center justify-between gap-3"><div><Status status={item.status}/><p className="mt-2 text-xs text-slate-400">{formatDateTime(item.createdAt)}</p></div>{item.status === 'COMPLETED' && <Link href={`/matching/${item.id}`} className="text-primary inline-flex items-center gap-1 text-sm font-bold">Xem kết quả<ChevronRight className="size-4"/></Link>}</div>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="truncate font-extrabold text-slate-900">
+                        {item.cvNameSnapshot}
+                    </p>
+                    <p className="mt-1 truncate text-sm text-slate-500">
+                        {item.jdTitleSnapshot}
+                    </p>
+                </div>
+                <Score
+                    value={item.status === 'COMPLETED' ? item.matchScore : null}
+                />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3">
+                <div>
+                    <Status status={item.status} />
+                    <p className="mt-2 text-xs text-slate-400">
+                        {formatDateTime(item.createdAt)}
+                    </p>
+                </div>
+                {item.status === 'COMPLETED' && (
+                    <Link
+                        href={`/matching/${item.id}`}
+                        className="text-primary inline-flex items-center gap-1 text-sm font-bold"
+                    >
+                        Xem kết quả
+                        <ChevronRight className="size-4" />
+                    </Link>
+                )}
+            </div>
         </article>
     );
 }
 
-function CellTitle({ icon: Icon, title, subtitle }: { icon: typeof FileText; title: string; subtitle: string }) { return <div className="flex min-w-0 items-center gap-3"><span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg"><Icon className="size-4"/></span><div className="min-w-0"><p className="truncate font-bold text-slate-900">{title}</p><p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p></div></div>; }
+function CellTitle({
+    icon: Icon,
+    title,
+    subtitle,
+}: {
+    icon: typeof FileText;
+    title: string;
+    subtitle: string;
+}) {
+    return (
+        <div className="flex min-w-0 items-center gap-3">
+            <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
+                <Icon className="size-4" />
+            </span>
+            <div className="min-w-0">
+                <p className="truncate font-bold text-slate-900">{title}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {subtitle}
+                </p>
+            </div>
+        </div>
+    );
+}
 function Score({ value }: { value: number | null }) {
     if (value === null) {
         return (
@@ -468,7 +583,50 @@ function Score({ value }: { value: number | null }) {
         </span>
     );
 }
-function Status({ status }: { status: CvJdMatchSummary['status'] }) { const config = status === 'COMPLETED' ? ['Hoàn tất', 'bg-emerald-50 text-emerald-700'] : status === 'PROCESSING' ? ['Đang xử lý', 'bg-violet-50 text-violet-700'] : ['Thất bại', 'bg-red-50 text-red-700']; return <span className={cn('inline-flex rounded-md px-2.5 py-1 text-xs font-bold', config[1])}>{config[0]}</span>; }
-function SetupSkeleton() { return <div className="mt-6 grid gap-4 lg:grid-cols-2"><div className="h-64 animate-pulse rounded-2xl bg-slate-100"/><div className="h-64 animate-pulse rounded-2xl bg-slate-100"/></div>; }
-function OptionsError({ onRetry }: { onRetry: () => void }) { return <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-6"><p className="font-bold text-red-700">Không thể tải danh sách CV và JD.</p><Button variant="outline" className="mt-3" onClick={onRetry}>Thử lại</Button></div>; }
-function formatDateTime(value: string) { return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+function Status({ status }: { status: CvJdMatchSummary['status'] }) {
+    const config =
+        status === 'COMPLETED'
+            ? ['Hoàn tất', 'bg-emerald-50 text-emerald-700']
+            : status === 'PROCESSING'
+              ? ['Đang xử lý', 'bg-violet-50 text-violet-700']
+              : ['Thất bại', 'bg-red-50 text-red-700'];
+    return (
+        <span
+            className={cn(
+                'inline-flex rounded-md px-2.5 py-1 text-xs font-bold',
+                config[1],
+            )}
+        >
+            {config[0]}
+        </span>
+    );
+}
+function SetupSkeleton() {
+    return (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
+            <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
+        </div>
+    );
+}
+function OptionsError({ onRetry }: { onRetry: () => void }) {
+    return (
+        <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-6">
+            <p className="font-bold text-red-700">
+                Không thể tải danh sách CV và JD.
+            </p>
+            <Button variant="outline" className="mt-3" onClick={onRetry}>
+                Thử lại
+            </Button>
+        </div>
+    );
+}
+function formatDateTime(value: string) {
+    return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(value));
+}

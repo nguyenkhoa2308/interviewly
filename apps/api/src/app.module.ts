@@ -15,6 +15,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { CvModule } from './modules/cv/cv.module';
 import { JobDescriptionModule } from './modules/job-description/job-description.module';
 import { CvJdMatchModule } from './modules/cv-jd-match/cv-jd-match.module';
+import { InterviewModule } from './modules/interview/interview.module';
 
 @Module({
     imports: [
@@ -35,6 +36,7 @@ import { CvJdMatchModule } from './modules/cv-jd-match/cv-jd-match.module';
         CvModule,
         JobDescriptionModule,
         CvJdMatchModule,
+        InterviewModule,
     ],
     controllers: [AppController],
     providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

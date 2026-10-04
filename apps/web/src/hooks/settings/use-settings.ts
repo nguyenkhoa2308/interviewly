@@ -2,7 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { interviewKeys } from '@/hooks/interview/interview-keys';
 import { getSettings, updateSettings } from '@/services/settings.service';
+import type { InterviewOptions } from '@/types/interview';
 import type { Settings, UpdateSettingsPayload } from '@/types/settings';
 
 export const settingsKeys = {
@@ -28,6 +30,34 @@ export function useUpdateSettings() {
                 mergeUpdatedSettings(current, settings, updates),
             );
             void queryClient.invalidateQueries({ queryKey: settingsKeys.all });
+
+            if (updates.interviewPreferences) {
+                queryClient.setQueryData<InterviewOptions>(
+                    interviewKeys.options(),
+                    (current) =>
+                        current
+                            ? {
+                                  ...current,
+                                  defaults: {
+                                      ...current.defaults,
+                                      interviewType:
+                                          settings.interviewPreferences
+                                              .defaultInterviewType ??
+                                          'TECHNICAL',
+                                      difficulty:
+                                          settings.interviewPreferences
+                                              .defaultDifficulty ?? 'ADAPTIVE',
+                                      durationMinutes:
+                                          settings.interviewPreferences
+                                              .defaultDurationMinutes,
+                                  },
+                              }
+                            : current,
+                );
+                void queryClient.invalidateQueries({
+                    queryKey: interviewKeys.options(),
+                });
+            }
         },
     });
 }

@@ -86,6 +86,16 @@
     @apply border-border outline-ring/50;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
+@supports (scrollbar-gutter: stable) {
+    html body[data-scroll-locked] {
+        margin-right: 0 !important;
+    }
+}
+
 body {
     @apply bg-background text-foreground;
 }

@@ -61,6 +61,7 @@ export function MutationConfirmDialog({
                         variant="outline"
                         disabled={pending}
                         onClick={() => onOpenChange(false)}
+                        className="rounded-sm font-bold"
                     >
                         Hủy
                     </Button>
@@ -69,6 +70,7 @@ export function MutationConfirmDialog({
                         variant="destructive"
                         disabled={pending}
                         onClick={() => void onConfirm()}
+                        className="!border-destructive rounded-sm font-bold"
                     >
                         {pending ? pendingLabel : confirmLabel}
                     </Button>
