@@ -43,6 +43,7 @@ describe('InterviewService plan lifecycle', () => {
             build: jest.fn(),
         } as unknown as InterviewContextService;
         const config = {
+            get: jest.fn(() => 'test'),
             getOrThrow: jest.fn(() => 'secret'),
         } as unknown as ConfigService;
         return {

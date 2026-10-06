@@ -730,7 +730,6 @@ function ContextStep(props: ContextProps) {
                         ],
                         [
                             (props.selectedCv?.analysis.extractedSkills ?? [])
-                                .slice(0, 3)
                                 .map((skill) => skill.name)
                                 .filter(Boolean)
                                 .join(', ') || 'Chưa có dữ liệu',
@@ -759,9 +758,14 @@ function ContextStep(props: ContextProps) {
                             'Cấp độ kinh nghiệm',
                         ],
                         [
-                            (props.selectedJd?.analysis.requiredSkills ?? [])
-                                .slice(0, 3)
-                                .join(', ') || 'Chưa có dữ liệu',
+                            Array.from(
+                                new Set([
+                                    ...(props.selectedJd?.analysis
+                                        .requiredSkills ?? []),
+                                    ...(props.selectedJd?.analysis
+                                        .preferredSkills ?? []),
+                                ]),
+                            ).join(', ') || 'Chưa có dữ liệu',
                             'Kỹ năng yêu cầu',
                         ],
                         [

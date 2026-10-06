@@ -2,6 +2,8 @@ export interface GenerateStructuredRequest {
     systemInstruction: string;
     prompt: string;
     responseJsonSchema: Record<string, unknown>;
+    temperature?: number;
+    maxOutputTokens?: number;
 }
 
 export interface GenerateStructuredResult {

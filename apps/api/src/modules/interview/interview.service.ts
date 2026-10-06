@@ -3,10 +3,11 @@ import {
     HttpException,
     HttpStatus,
     Injectable,
+    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
     Difficulty,
     InterviewPlanStatus,
@@ -79,6 +80,8 @@ type InterviewPreviewPayload = {
 };
 @Injectable()
 export class InterviewService {
+    private readonly logger = new Logger(InterviewService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly context: InterviewContextService,
@@ -166,6 +169,7 @@ export class InterviewService {
                             detectedRole: true,
                             seniority: true,
                             requiredSkills: true,
+                            preferredSkills: true,
                             interviewFocus: true,
                         },
                     },
@@ -642,13 +646,27 @@ export class InterviewService {
             AI_SCHEMA_VALIDATION_FAILED: 502,
             AI_INVALID_INPUT: 422,
         };
+        const diagnostic = getAiDiagnostic(e.cause);
+        if (diagnostic) {
+            this.logger.warn(`AI request failed [${e.code}]: ${diagnostic}`);
+        }
+        const isProduction =
+            this.config.get<string>('NODE_ENV') === 'production';
         return new HttpException(
-            { code: e.code, message: e.safeMessage },
+            {
+                code: e.code,
+                message: e.safeMessage,
+                ...(!isProduction && diagnostic ? { details: diagnostic } : {}),
+            },
             status[e.code] ?? HttpStatus.BAD_GATEWAY,
         );
     }
 }
 
+function getAiDiagnostic(cause: unknown): string | null {
+    if (cause instanceof Error) return cause.message.slice(0, 500);
+    return typeof cause === 'string' ? cause.slice(0, 500) : null;
+}
 function withRegenerationContext(
     snapshot: Prisma.JsonValue,
     previous: Prisma.JsonValue | undefined,
@@ -660,13 +678,15 @@ function withRegenerationContext(
         !previous
     )
         return snapshot;
-    const questions = extractPreviousQuestions(previous);
+    const previousPlan = extractPreviousPlanContext(previous);
     return {
         ...snapshot,
         regeneration: {
-            previousPlannedQuestions: questions,
+            generationNonce: randomUUID(),
+            ...previousPlan,
+            minimumNewPrimaryIntentRatio: 0.5,
             instruction:
-                'Chọn góc hỏi hoặc competency khác khi hợp lý; không chỉ diễn đạt lại toàn bộ câu cũ. Vẫn giữ các câu nền tảng bắt buộc.',
+                'Generate a genuinely different plan: at least 50% of assessment primaryIntent values must be new. Rotate secondary competencies, probe areas, and project angles instead of merely paraphrasing old questions, while preserving required baseline coverage.',
         },
     };
 }
@@ -685,7 +705,7 @@ function previewConfiguration(dto: CreateInterviewDto) {
         targetLevel: dto.targetLevel ?? null,
     };
 }
-function extractPreviousQuestions(value: Prisma.JsonValue): string[] {
+function extractPreviousPlanContext(value: Prisma.JsonValue) {
     if (
         typeof value !== 'object' ||
         value === null ||
@@ -693,8 +713,13 @@ function extractPreviousQuestions(value: Prisma.JsonValue): string[] {
         !('sections' in value) ||
         !Array.isArray(value.sections)
     )
-        return [];
-    return value.sections
+        return {
+            previousPlannedQuestions: [],
+            previousPrimaryIntents: [],
+            previousTopics: [],
+            previousCompetencyKeys: [],
+        };
+    const questions = value.sections
         .flatMap((section) => {
             if (
                 typeof section !== 'object' ||
@@ -704,15 +729,25 @@ function extractPreviousQuestions(value: Prisma.JsonValue): string[] {
                 !Array.isArray(section.questions)
             )
                 return [];
-            return section.questions.flatMap((question) =>
-                typeof question === 'object' &&
-                question !== null &&
-                !Array.isArray(question) &&
-                'suggestedQuestion' in question &&
-                typeof question.suggestedQuestion === 'string'
-                    ? [question.suggestedQuestion]
-                    : [],
+            return section.questions.filter(
+                (question): question is Prisma.JsonObject =>
+                    typeof question === 'object' &&
+                    question !== null &&
+                    !Array.isArray(question),
             );
         })
         .slice(0, 20);
+    const strings = (field: string) =>
+        questions.flatMap((question) => {
+            const candidate = question[field];
+            return typeof candidate === 'string' && candidate.trim()
+                ? [candidate.trim()]
+                : [];
+        });
+    return {
+        previousPlannedQuestions: strings('suggestedQuestion'),
+        previousPrimaryIntents: strings('primaryIntent'),
+        previousTopics: [...new Set(strings('topic'))],
+        previousCompetencyKeys: [...new Set(strings('competencyKey'))],
+    };
 }

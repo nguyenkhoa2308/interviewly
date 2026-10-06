@@ -41,6 +41,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
         let message: string | string[] = 'Internal server error';
         let code: string | undefined;
+        let details: unknown;
 
         if (
             typeof exceptionResponse === 'object' &&
@@ -53,6 +54,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
             if ('code' in exceptionResponse) {
                 code = exceptionResponse.code as string;
             }
+
+            if ('details' in exceptionResponse) {
+                details = exceptionResponse.details;
+            }
         }
 
         response.status(status).json({
@@ -60,6 +65,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             error: {
                 statusCode: status,
                 ...(code && { code }),
+                ...(details !== undefined && { details }),
                 message,
             },
         });

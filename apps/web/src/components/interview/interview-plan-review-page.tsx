@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     ArrowLeft,
     ArrowRight,
@@ -21,6 +22,7 @@ import { getInterviewTypeLabel } from '@/constants/interview-options';
 import {
     useInterview,
     useRegenerateInterviewPlan,
+    useStartInterview,
 } from '@/hooks/interview/use-interviews';
 import type { InterviewPlanData } from '@/types/interview';
 
@@ -34,14 +36,28 @@ const levelLabels: Record<string, string> = {
 };
 
 export function InterviewPlanReviewPage({ id }: { id: string }) {
+    const router = useRouter();
     const query = useInterview(id);
     const regenerate = useRegenerateInterviewPlan(id);
+    const start = useStartInterview(id);
     if (query.isPending) return <ReviewSkeleton />;
     if (!query.data) return <ReviewError onRetry={() => query.refetch()} />;
     const interview = query.data;
     const plan = interview.plans[0];
     const data = plan?.planData;
 
+    async function beginInterview() {
+        try {
+            await start.mutateAsync();
+            router.push(`/interviews/${id}/session`);
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Không thể bắt đầu buổi phỏng vấn.',
+            );
+        }
+    }
     async function rerun() {
         try {
             await regenerate.mutateAsync();
@@ -201,12 +217,37 @@ export function InterviewPlanReviewPage({ id }: { id: string }) {
                         Tạo cấu hình khác
                     </Link>
                 </Button>
-                <Button asChild className="rounded-sm px-6 py-5 font-bold">
-                    <Link href="/interviews">
-                        Hoàn tất
-                        <ArrowRight className="size-4" />
-                    </Link>
-                </Button>
+                {interview.status === 'READY' ? (
+                    <Button
+                        className="rounded-sm px-6 py-5 font-bold"
+                        disabled={start.isPending}
+                        onClick={() => void beginInterview()}
+                    >
+                        {start.isPending ? (
+                            <RefreshCw className="size-4 animate-spin" />
+                        ) : (
+                            <Sparkles className="size-4" />
+                        )}
+                        Bắt đầu phỏng vấn
+                    </Button>
+                ) : interview.status === 'IN_PROGRESS' ||
+                  interview.status === 'COMPLETED' ? (
+                    <Button asChild className="rounded-sm px-6 py-5 font-bold">
+                        <Link href={`/interviews/${id}/session`}>
+                            {interview.status === 'COMPLETED'
+                                ? 'Xem trạng thái hoàn thành'
+                                : 'Tiếp tục phỏng vấn'}
+                            <ArrowRight className="size-4" />
+                        </Link>
+                    </Button>
+                ) : (
+                    <Button asChild className="rounded-sm px-6 py-5 font-bold">
+                        <Link href="/interviews">
+                            Về danh sách
+                            <ArrowRight className="size-4" />
+                        </Link>
+                    </Button>
+                )}
             </div>
         </main>
     );

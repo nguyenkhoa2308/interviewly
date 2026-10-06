@@ -72,8 +72,8 @@ export class GeminiProvider implements AiProvider {
                     responseJsonSchema: toGeminiResponseJsonSchema(
                         request.responseJsonSchema,
                     ),
-                    temperature: 0.1,
-                    maxOutputTokens: 8_192,
+                    temperature: request.temperature ?? 0.1,
+                    maxOutputTokens: request.maxOutputTokens ?? 8_192,
                     httpOptions: {
                         timeout: this.timeoutMs,
                         retryOptions: { attempts: 1 },
