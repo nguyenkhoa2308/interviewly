@@ -9,6 +9,8 @@ import type {
     InterviewListResponse,
     InterviewListSort,
     InterviewStatus,
+    InterviewRuntimeState,
+    SubmitInterviewAnswerPayload,
 } from '@/types/interview';
 
 async function request<T>(fn: () => Promise<T>) {
@@ -99,6 +101,40 @@ export const regenerateInterviewPlan = (id: string) =>
             (
                 await postData<ApiSuccessResponse<Interview>>(
                     `/interviews/${id}/plans`,
+                )
+            ).data,
+    );
+
+export const getInterviewRuntime = (id: string) =>
+    request(
+        async () =>
+            (
+                await getData<ApiSuccessResponse<InterviewRuntimeState>>(
+                    `/interviews/${id}/session`,
+                )
+            ).data,
+    );
+
+export const startInterview = (id: string) =>
+    request(
+        async () =>
+            (
+                await postData<ApiSuccessResponse<InterviewRuntimeState>>(
+                    `/interviews/${id}/start`,
+                )
+            ).data,
+    );
+
+export const submitInterviewAnswer = (
+    id: string,
+    payload: SubmitInterviewAnswerPayload,
+) =>
+    request(
+        async () =>
+            (
+                await postData<ApiSuccessResponse<InterviewRuntimeState>>(
+                    `/interviews/${id}/session/answers`,
+                    payload,
                 )
             ).data,
     );

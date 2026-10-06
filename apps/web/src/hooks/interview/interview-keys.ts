@@ -11,4 +11,5 @@ export const interviewKeys = {
         ] as const,
     options: () => [...interviewKeys.all, 'options'] as const,
     detail: (id: string) => [...interviewKeys.all, 'detail', id] as const,
+    runtime: (id: string) => [...interviewKeys.all, 'runtime', id] as const,
 };

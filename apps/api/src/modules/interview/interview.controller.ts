@@ -17,12 +17,17 @@ import { CreateInterviewDto } from './dto/create-interview.dto';
 import { DeleteInterviewsDto } from './dto/delete-interviews.dto';
 import { ListInterviewPlansQueryDto } from './dto/list-interview-plans-query.dto';
 import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
+import { SubmitInterviewAnswerDto } from './dto/submit-interview-answer.dto';
+import { InterviewRuntimeService } from './interview-runtime.service';
 import { InterviewService } from './interview.service';
 @ApiTags('Interviews')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard)
 export class InterviewController {
-    constructor(private readonly service: InterviewService) {}
+    constructor(
+        private readonly service: InterviewService,
+        private readonly runtime: InterviewRuntimeService,
+    ) {}
     @Get('options')
     @ApiOperation({ summary: 'Nguồn dữ liệu có thể dùng để tạo phỏng vấn' })
     options(@CurrentUser() u: AuthUser) {
@@ -51,6 +56,31 @@ export class InterviewController {
     })
     removeMany(@CurrentUser() u: AuthUser, @Body() d: DeleteInterviewsDto) {
         return this.service.removeMany(u.id, d.ids);
+    }
+    @Post(':id/start')
+    @ApiOperation({ summary: 'Bắt đầu hoặc tiếp tục phiên phỏng vấn văn bản' })
+    start(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.runtime.start(u.id, id);
+    }
+    @Get(':id/session')
+    @ApiOperation({ summary: 'Trạng thái runtime hiện tại của buổi phỏng vấn' })
+    session(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.runtime.getState(u.id, id);
+    }
+    @Post(':id/session/answers')
+    @ApiOperation({ summary: 'Gửi câu trả lời cho câu hỏi hiện tại' })
+    answer(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+        @Body() dto: SubmitInterviewAnswerDto,
+    ) {
+        return this.runtime.submitAnswer(u.id, id, dto.turnId, dto.answer);
     }
     @Get(':id') @ApiOperation({ summary: 'Chi tiết buổi phỏng vấn' }) get(
         @CurrentUser() u: AuthUser,

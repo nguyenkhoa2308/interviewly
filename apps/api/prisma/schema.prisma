@@ -565,33 +565,34 @@ model CVJDMatch {
 }
 
 model Interview {
-  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String           @map("user_id") @db.Uuid
-  cvId                  String           @map("cv_id") @db.Uuid
-  cvVersionId           String           @map("cv_version_id") @db.Uuid
-  cvAnalysisId          String           @map("cv_analysis_id") @db.Uuid
-  jobDescriptionId      String           @map("job_description_id") @db.Uuid
-  jdAnalysisId          String           @map("jd_analysis_id") @db.Uuid
-  cvJdMatchId           String?          @map("cv_jd_match_id") @db.Uuid
-  status                InterviewStatus  @default(PLANNING)
-  interviewType         InterviewType    @map("interview_type")
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String            @map("user_id") @db.Uuid
+  cvId                  String            @map("cv_id") @db.Uuid
+  cvVersionId           String            @map("cv_version_id") @db.Uuid
+  cvAnalysisId          String            @map("cv_analysis_id") @db.Uuid
+  jobDescriptionId      String            @map("job_description_id") @db.Uuid
+  jdAnalysisId          String            @map("jd_analysis_id") @db.Uuid
+  cvJdMatchId           String?           @map("cv_jd_match_id") @db.Uuid
+  status                InterviewStatus   @default(PLANNING)
+  interviewType         InterviewType     @map("interview_type")
   difficulty            Difficulty
-  durationMinutes       Int              @map("duration_minutes")
-  questionCount         Int              @map("question_count")
-  focusAreas            Json             @map("focus_areas")
-  targetRole            String           @map("target_role") @db.VarChar(150)
-  targetLevel           ExperienceLevel? @map("target_level")
-  sourceContextSnapshot Json             @map("source_context_snapshot")
-  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cv                    CV               @relation(fields: [cvId], references: [id], onDelete: Restrict)
-  cvVersion             CVVersion        @relation(fields: [cvVersionId], references: [id], onDelete: Restrict)
-  cvAnalysis            CVAnalysis       @relation(fields: [cvAnalysisId], references: [id], onDelete: Restrict)
-  jobDescription        JobDescription   @relation(fields: [jobDescriptionId], references: [id], onDelete: Restrict)
-  jdAnalysis            JDAnalysis       @relation(fields: [jdAnalysisId], references: [id], onDelete: Restrict)
-  cvJdMatch             CVJDMatch?       @relation(fields: [cvJdMatchId], references: [id], onDelete: SetNull)
+  durationMinutes       Int               @map("duration_minutes")
+  questionCount         Int               @map("question_count")
+  focusAreas            Json              @map("focus_areas")
+  targetRole            String            @map("target_role") @db.VarChar(150)
+  targetLevel           ExperienceLevel?  @map("target_level")
+  sourceContextSnapshot Json              @map("source_context_snapshot")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv                    CV                @relation(fields: [cvId], references: [id], onDelete: Restrict)
+  cvVersion             CVVersion         @relation(fields: [cvVersionId], references: [id], onDelete: Restrict)
+  cvAnalysis            CVAnalysis        @relation(fields: [cvAnalysisId], references: [id], onDelete: Restrict)
+  jobDescription        JobDescription    @relation(fields: [jobDescriptionId], references: [id], onDelete: Restrict)
+  jdAnalysis            JDAnalysis        @relation(fields: [jdAnalysisId], references: [id], onDelete: Restrict)
+  cvJdMatch             CVJDMatch?        @relation(fields: [cvJdMatchId], references: [id], onDelete: SetNull)
   plans                 InterviewPlan[]
+  session               InterviewSession?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, status])
@@ -613,9 +614,127 @@ model InterviewPlan {
   createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   completedAt   DateTime?           @map("completed_at") @db.Timestamptz(6)
   interview     Interview           @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  session       InterviewSession?
 
   @@unique([interviewId, version])
   @@index([interviewId, createdAt(sort: Desc)])
   @@index([interviewId, status])
   @@map("interview_plans")
+}
+
+model InterviewSession {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  interviewId String    @unique @map("interview_id") @db.Uuid
+  planId      String    @unique @map("plan_id") @db.Uuid
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  interview Interview       @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  plan      InterviewPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  turns     InterviewTurn[]
+
+  @@index([interviewId, completedAt])
+  @@map("interview_sessions")
+}
+
+model InterviewTurn {
+  id                     String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId              String                          @map("session_id") @db.Uuid
+  ordinal                Int?
+  runtimeOrder           Int                             @map("runtime_order")
+  plannedQuestionKey     String                          @map("planned_question_key") @db.VarChar(100)
+  plannedStatus          InterviewPlannedQuestionStatus? @map("planned_status")
+  probeType              InterviewProbeType              @default(MAIN_TARGET_LEVEL) @map("probe_type")
+  questionLevel          ExperienceLevel?                @map("question_level")
+  scoringImpact          InterviewScoringImpact          @default(TARGET_LEVEL) @map("scoring_impact")
+  coverageEvidence       Json?                           @map("coverage_evidence")
+  dispositionReason      String?                         @map("disposition_reason")
+  coveredByTurnId        String?                         @map("covered_by_turn_id") @db.Uuid
+  rootPlannedQuestionKey String                          @map("root_planned_question_key") @db.VarChar(100)
+  parentTurnId           String?                         @unique @map("parent_turn_id") @db.Uuid
+  origin                 InterviewTurnOrigin             @default(PLANNED_MAIN)
+  adaptiveAction         InterviewAdaptiveAction?        @map("adaptive_action")
+  assistanceLevel        InterviewAssistanceLevel        @default(NONE) @map("assistance_level")
+  depth                  Int                             @default(0)
+  sectionIndex           Int                             @map("section_index")
+  sectionTitle           String                          @map("section_title") @db.VarChar(150)
+  questionType           String                          @map("question_type") @db.VarChar(50)
+  topic                  String?                         @db.VarChar(150)
+  competencyKey          String?                         @map("competency_key") @db.VarChar(100)
+  difficulty             Difficulty?
+  questionText           String                          @map("question_text")
+  answerText             String?                         @map("answer_text")
+  answerAssessment       Json?                           @map("answer_assessment")
+  decisionReason         String?                         @map("decision_reason")
+  adaptiveStatus         InterviewAdaptiveStatus         @default(IDLE) @map("adaptive_status")
+  adaptiveProcessedAt    DateTime?                       @map("adaptive_processed_at") @db.Timestamptz(6)
+  modelProvider          String?                         @map("model_provider") @db.VarChar(100)
+  modelName              String?                         @map("model_name") @db.VarChar(150)
+  promptVersion          String?                         @map("prompt_version") @db.VarChar(50)
+  createdAt              DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  answeredAt             DateTime?                       @map("answered_at") @db.Timestamptz(6)
+
+  session       InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  parentTurn    InterviewTurn?   @relation("InterviewTurnLineage", fields: [parentTurnId], references: [id], onDelete: SetNull)
+  childTurn     InterviewTurn?   @relation("InterviewTurnLineage")
+  coveredByTurn InterviewTurn?   @relation("InterviewTurnCoverage", fields: [coveredByTurnId], references: [id], onDelete: SetNull)
+  coveredTurns  InterviewTurn[]  @relation("InterviewTurnCoverage")
+
+  @@unique([sessionId, ordinal])
+  @@unique([sessionId, runtimeOrder])
+  @@unique([sessionId, plannedQuestionKey])
+  @@index([sessionId, answeredAt, runtimeOrder])
+  @@index([sessionId, rootPlannedQuestionKey])
+  @@index([sessionId, plannedStatus, runtimeOrder])
+  @@index([sessionId, competencyKey])
+  @@index([adaptiveStatus, answeredAt])
+  @@map("interview_turns")
+}
+
+enum InterviewPlannedQuestionStatus {
+  PENDING
+  ASKED
+  COVERED_INDIRECTLY
+  SKIPPED_REDUNDANT
+  UNUSED
+}
+
+enum InterviewProbeType {
+  MAIN_TARGET_LEVEL
+  SAME_LEVEL_PROBE
+  STRETCH_PROBE
+}
+
+enum InterviewScoringImpact {
+  TARGET_LEVEL
+  BONUS_ONLY
+}
+
+enum InterviewTurnOrigin {
+  PLANNED_MAIN
+  ADAPTIVE
+}
+
+enum InterviewAdaptiveAction {
+  FOLLOW_UP
+  REPHRASE
+  INCREASE_DEPTH
+  DECREASE_DEPTH
+  CHANGE_TOPIC
+}
+
+enum InterviewAssistanceLevel {
+  NONE
+  REPHRASE
+  SIMPLIFIED
+  LIGHT_HINT
+}
+
+enum InterviewAdaptiveStatus {
+  IDLE
+  PROCESSING
+  COMPLETED
+  FAILED
 }

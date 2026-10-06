@@ -9,7 +9,10 @@ import {
     getInterview,
     getInterviewOptions,
     getInterviews,
+    getInterviewRuntime,
     previewInterviewPlan,
+    startInterview,
+    submitInterviewAnswer,
     regenerateInterviewPlan,
 } from '@/services/interview.service';
 
@@ -92,5 +95,46 @@ export function useRegenerateInterviewPlan(id: string) {
         mutationFn: () => regenerateInterviewPlan(id),
         retry: false,
         onSuccess: (data) => queryClient.setQueryData(keys.detail(id), data),
+    });
+}
+
+export const useInterviewRuntime = (id: string) =>
+    useQuery({
+        queryKey: keys.runtime(id),
+        queryFn: () => getInterviewRuntime(id),
+        enabled: Boolean(id),
+        refetchInterval: (query) =>
+            query.state.data?.processing ? 2_000 : false,
+        meta,
+    });
+
+export function useStartInterview(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => startInterview(id),
+        retry: false,
+        onSuccess: (data) => {
+            queryClient.setQueryData(keys.runtime(id), data);
+            void queryClient.invalidateQueries({ queryKey: keys.detail(id) });
+            void queryClient.invalidateQueries({ queryKey: keys.all });
+        },
+    });
+}
+
+export function useSubmitInterviewAnswer(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: { turnId: string; answer: string }) =>
+            submitInterviewAnswer(id, payload),
+        retry: false,
+        onSuccess: (data) => {
+            queryClient.setQueryData(keys.runtime(id), data);
+            if (data.completed) {
+                void queryClient.invalidateQueries({
+                    queryKey: keys.detail(id),
+                });
+                void queryClient.invalidateQueries({ queryKey: keys.all });
+            }
+        },
     });
 }

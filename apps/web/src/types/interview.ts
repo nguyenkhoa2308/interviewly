@@ -26,6 +26,7 @@ export interface InterviewJobOption {
         detectedRole: string | null;
         seniority: string | null;
         requiredSkills: string[] | null;
+        preferredSkills: string[] | null;
         interviewFocus: string[] | null;
     };
 }
@@ -66,6 +67,11 @@ export interface InterviewPlanData {
                 | 'BEHAVIORAL'
                 | 'CANDIDATE';
             topic: string;
+            priority?: 'KEY' | 'HIGH' | 'MEDIUM' | 'LOW';
+            expectedDepth?:
+                'FOUNDATION' | 'PRACTICAL' | 'TRADE_OFF' | 'ARCHITECTURE';
+            evidenceObjectives?: string[];
+            probeAreas?: string[];
             objective: string;
             difficulty: 'EASY' | 'MEDIUM' | 'HARD' | null;
             suggestedQuestion: string;
@@ -170,4 +176,47 @@ export interface InterviewListResponse {
         total: number;
         totalPages: number;
     };
+}
+
+export interface InterviewRuntimeState {
+    interview: {
+        id: string;
+        status: InterviewStatus;
+        interviewType: InterviewType;
+        targetRole: string;
+        targetLevel: string | null;
+        durationMinutes: number;
+    };
+    session: {
+        id: string;
+        planId: string;
+        planVersion: number;
+        startedAt: string;
+        completedAt: string | null;
+    } | null;
+    currentTurn: {
+        id: string;
+        ordinal: number;
+        sectionIndex: number;
+        sectionTitle: string;
+        questionType: InterviewPlanData['sections'][number]['questions'][number]['type'];
+        questionText: string;
+        isAdaptive: boolean;
+        transition: string | null;
+    } | null;
+    progress: {
+        completedQuestions: number;
+        totalQuestions: number;
+        percentage: number;
+        currentSection: string | null;
+        sectionNumber: number;
+        totalSections: number;
+    };
+    processing: boolean;
+    completed: boolean;
+}
+
+export interface SubmitInterviewAnswerPayload {
+    turnId: string;
+    answer: string;
 }
