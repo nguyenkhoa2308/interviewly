@@ -44,6 +44,35 @@ const statusLabel: Record<InterviewListItem['status'], string> = {
     COMPLETED: 'Đã hoàn thành',
     CANCELLED: 'Đã hủy',
 };
+const statusStyle: Record<
+    InterviewListItem['status'],
+    { badge: string; icon: string }
+> = {
+    DRAFT: {
+        badge: 'border border-amber-200 bg-amber-50 text-amber-700',
+        icon: 'bg-amber-50 text-amber-600',
+    },
+    PLANNING: {
+        badge: 'border border-sky-200 bg-sky-50 text-sky-700',
+        icon: 'bg-sky-50 text-sky-600',
+    },
+    READY: {
+        badge: 'border border-violet-200 bg-violet-50 text-violet-700',
+        icon: 'bg-violet-50 text-violet-600',
+    },
+    IN_PROGRESS: {
+        badge: 'border border-blue-200 bg-blue-50 text-blue-700',
+        icon: 'bg-blue-50 text-blue-600',
+    },
+    COMPLETED: {
+        badge: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+        icon: 'bg-emerald-50 text-emerald-600',
+    },
+    CANCELLED: {
+        badge: 'border border-rose-200 bg-rose-50 text-rose-700',
+        icon: 'bg-rose-50 text-rose-600',
+    },
+};
 
 export function InterviewManagementPage() {
     const [page, setPage] = useState(1);
@@ -376,7 +405,7 @@ function InterviewCard({
     onSelectedChange: (checked: boolean) => void;
     onDelete: (item: InterviewListItem) => void;
 }) {
-    const isDraft = item.status === 'DRAFT';
+    const styles = statusStyle[item.status];
     return (
         <article
             className={`group relative min-h-64 rounded-2xl border bg-white shadow-[0_12px_35px_rgba(47,38,80,.04)] transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-[0_18px_45px_rgba(87,60,150,.09)] ${selected ? 'border-primary ring-primary/10 ring-2' : 'border-slate-200'}`}
@@ -414,18 +443,13 @@ function InterviewCard({
                 className="flex min-h-64 flex-col p-5 focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:outline-none"
             >
                 <div className="flex items-start gap-3 pr-20 pl-10">
-                    <span className="text-primary grid size-11 place-items-center rounded-xl bg-violet-50">
+                    <span
+                        className={`grid size-11 place-items-center rounded-xl ${styles.icon}`}
+                    >
                         <Sparkles className="size-5" strokeWidth={2.3} />
                     </span>
                     <span
-                        className={
-                            'ml-auto rounded-full px-3 py-1 text-xs font-bold ' +
-                            (isDraft
-                                ? 'bg-amber-50 text-amber-700'
-                                : item.status === 'READY'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : 'bg-slate-100 text-slate-600')
-                        }
+                        className={`ml-auto rounded-full px-3 py-1 text-xs font-bold ${styles.badge}`}
                     >
                         {statusLabel[item.status]}
                     </span>

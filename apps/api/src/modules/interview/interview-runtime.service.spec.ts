@@ -284,6 +284,20 @@ describe('InterviewRuntimeService adaptive runtime', () => {
         ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('exposes section context without candidate-facing timing or adaptive metadata', async () => {
+        prisma.interview.findFirst.mockResolvedValue(stateInterview());
+
+        const state = await service.getState(userId, interviewId);
+
+        expect(state.progress).toEqual({
+            currentSection: currentTurn.sectionTitle,
+            sectionNumber: 1,
+            totalSections: 1,
+        });
+        expect(state).not.toHaveProperty('timing');
+        expect(state.currentTurn).not.toHaveProperty('isAdaptive');
+        expect(state.currentTurn).not.toHaveProperty('transition');
+    });
     it('starts with a frozen plan and snapshots planned runtime order', async () => {
         prisma.interview.findFirst
             .mockResolvedValueOnce({
@@ -312,6 +326,7 @@ describe('InterviewRuntimeService adaptive runtime', () => {
         rootAdaptiveCount = 0,
         remainingAfter = 1,
         remainingPlanned = 1,
+        pendingTurns?: Array<typeof nextTurn>,
     ) {
         prisma.interview.findFirst
             .mockResolvedValueOnce(ownedWithTurns())
@@ -320,11 +335,12 @@ describe('InterviewRuntimeService adaptive runtime', () => {
         prisma.interviewTurn.findFirst.mockResolvedValue(currentTurn);
         prisma.interviewTurn.findMany
             .mockResolvedValueOnce(
-                Array.from({ length: remainingPlanned }, (_, index) => ({
-                    ...nextTurn,
-                    id: `${nextTurn.id}-${index}`,
-                    plannedQuestionKey: `planned:${index + 2}`,
-                })),
+                pendingTurns ??
+                    Array.from({ length: remainingPlanned }, (_, index) => ({
+                        ...nextTurn,
+                        id: `${nextTurn.id}-${index}`,
+                        plannedQuestionKey: `planned:${index + 2}`,
+                    })),
             )
             .mockResolvedValueOnce([]);
         prisma.interviewTurn.count
@@ -423,7 +439,7 @@ describe('InterviewRuntimeService adaptive runtime', () => {
         expect(prisma.interviewTurn.create).not.toHaveBeenCalled();
     });
 
-    it('passes the current section budget separately from total interview time', async () => {
+    it('does not expose wall-clock timing to the adaptive decision', async () => {
         await arrangeSubmit(
             adaptiveOutput('FOLLOW_UP', 'Bạn có thể nói rõ hơn không?'),
         );
@@ -434,59 +450,70 @@ describe('InterviewRuntimeService adaptive runtime', () => {
             'Một câu trả lời ngắn.',
         );
         expect(adaptive.evaluate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                timing: expect.objectContaining({
-                    targetDurationMinutes: 30,
-                    currentSectionBudgetMinutes: 5,
-                    currentSectionElapsedMinutes: expect.any(Number),
-                    currentSectionRemainingMinutes: expect.any(Number),
-                }),
-            }),
+            expect.not.objectContaining({ timing: expect.anything() }),
         );
     });
 
-    it('does not add a follow-up after the current section budget is exhausted', async () => {
+    it('still allows a useful follow-up when a section has been open longer than its estimate', async () => {
         await arrangeSubmit(
-            adaptiveOutput('FOLLOW_UP', 'Một câu hỏi phụ không cần thiết?'),
+            adaptiveOutput(
+                'FOLLOW_UP',
+                'Bạn có thể đưa ra một ví dụ cụ thể không?',
+            ),
         );
-        const sectionExpired = ownedWithTurns();
-        sectionExpired.session.startedAt = new Date(Date.now() - 6 * 60_000);
+        const longRunningSection = ownedWithTurns();
+        longRunningSection.session.startedAt = new Date(
+            Date.now() - 60 * 60_000,
+        );
         prisma.interview.findFirst.mockReset();
         prisma.interview.findFirst
-            .mockResolvedValueOnce(sectionExpired)
+            .mockResolvedValueOnce(longRunningSection)
             .mockResolvedValueOnce(stateInterview());
 
         await service.submitAnswer(
             userId,
             interviewId,
             turnId,
-            'Đã có đủ bằng chứng cho chủ đề này.',
+            'Tôi đã áp dụng cách này trong một dự án.',
         );
 
-        expect(prisma.interviewTurn.create).not.toHaveBeenCalled();
+        expect(prisma.interviewTurn.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                parentTurnId: turnId,
+                origin: 'ADAPTIVE',
+                adaptiveAction: 'FOLLOW_UP',
+            }),
+        });
     });
-    it('protects remaining breadth near the end of the time budget', async () => {
+
+    it('does not suppress a useful follow-up because the total session was left open', async () => {
         await arrangeSubmit(
-            adaptiveOutput('INCREASE_DEPTH', 'One more deep question?'),
+            adaptiveOutput(
+                'INCREASE_DEPTH',
+                'Bạn kiểm chứng kết quả đó như thế nào?',
+            ),
             0,
             3,
             3,
         );
-        const nearEnd = ownedWithTurns();
-        nearEnd.session.startedAt = new Date(Date.now() - 22 * 60_000);
+        const longRunningSession = ownedWithTurns();
+        longRunningSession.session.startedAt = new Date(
+            Date.now() - 90 * 60_000,
+        );
         prisma.interview.findFirst.mockReset();
         prisma.interview.findFirst
-            .mockResolvedValueOnce(nearEnd)
+            .mockResolvedValueOnce(longRunningSession)
             .mockResolvedValueOnce(stateInterview());
+
         await service.submitAnswer(
             userId,
             interviewId,
             turnId,
-            'Strong answer',
+            'Tôi đã profiling và tối ưu có chọn lọc.',
         );
-        expect(prisma.interviewTurn.create).not.toHaveBeenCalled();
-    });
 
+        expect(prisma.interviewTurn.create).toHaveBeenCalledTimes(1);
+    });
     it('stops the weak-answer recovery ladder when its root limit is reached', async () => {
         await arrangeSubmit(
             adaptiveOutput('DECREASE_DEPTH', 'A simpler version?', 'WEAK'),
@@ -616,23 +643,108 @@ describe('InterviewRuntimeService adaptive runtime', () => {
             }),
         );
     });
+    it('does not let indirect coverage remove a question from a future section', async () => {
+        const output = adaptiveOutput('NEXT', null);
+        output.result.coveredPlannedQuestionKeys = ['planned:project'];
+        output.result.selectedPlannedQuestionKey = null;
+        output.result.probeType = 'MAIN_TARGET_LEVEL';
+        await arrangeSubmit(output, 0, 1, 1, [
+            {
+                ...nextTurn,
+                plannedQuestionKey: 'planned:project',
+                questionType: 'PROJECT',
+                sectionIndex: currentTurn.sectionIndex + 1,
+            },
+        ]);
+
+        await service.submitAnswer(
+            userId,
+            interviewId,
+            turnId,
+            'The technical answer must not cover the future project section.',
+        );
+
+        expect(prisma.interviewTurn.updateMany).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    plannedStatus: 'COVERED_INDIRECTLY',
+                }),
+            }),
+        );
+    });
+
+    it('does not let topic saturation skip a question from a future section', async () => {
+        const output = adaptiveOutput('NEXT', null);
+        output.result.topicSaturated = true;
+        output.result.selectedPlannedQuestionKey = null;
+        output.result.probeType = 'MAIN_TARGET_LEVEL';
+        await arrangeSubmit(output, 0, 1, 1, [
+            {
+                ...nextTurn,
+                plannedQuestionKey: 'planned:project',
+                questionType: 'PROJECT',
+                sectionIndex: currentTurn.sectionIndex + 1,
+            },
+        ]);
+
+        await service.submitAnswer(
+            userId,
+            interviewId,
+            turnId,
+            'Saturation must remain scoped to the current section.',
+        );
+
+        expect(prisma.interviewTurn.updateMany).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    plannedStatus: 'SKIPPED_REDUNDANT',
+                }),
+            }),
+        );
+    });
     it('preserves the candidate-questions closing turn until other coverage is done', () => {
         const chooseNext = (service as any).chooseNextPlanned.bind(service);
         const technical = {
             id: 'technical',
             plannedQuestionKey: 'planned:2',
             questionType: 'TECHNICAL',
+            sectionIndex: 1,
+            runtimeOrder: 2,
         };
         const closing = {
             id: 'closing',
             plannedQuestionKey: 'planned:99',
             questionType: 'CANDIDATE',
+            sectionIndex: 4,
+            runtimeOrder: 99,
         };
 
         expect(
             chooseNext([closing, technical], closing.plannedQuestionKey),
         ).toEqual(technical);
         expect(chooseNext([closing], null)).toEqual(closing);
+    });
+
+    it('does not jump over an unfinished project section selected by the AI', () => {
+        const chooseNext = (service as any).chooseNextPlanned.bind(service);
+        const project = {
+            id: 'project',
+            plannedQuestionKey: 'planned:project',
+            questionType: 'PROJECT',
+            sectionIndex: 2,
+            runtimeOrder: 30,
+        };
+        const behavioral = {
+            id: 'behavioral',
+            plannedQuestionKey: 'planned:behavioral',
+            questionType: 'BEHAVIORAL',
+            sectionIndex: 3,
+            runtimeOrder: 40,
+        };
+
+        expect(
+            chooseNext([behavioral, project], behavioral.plannedQuestionKey),
+        ).toEqual(project);
     });
 
     it('accepts only one-level bonus-only stretch probes', () => {

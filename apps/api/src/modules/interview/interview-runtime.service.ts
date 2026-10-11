@@ -48,6 +48,7 @@ export class InterviewRuntimeService {
                 targetRole: true,
                 targetLevel: true,
                 durationMinutes: true,
+                focusAreas: true,
                 session: {
                     select: {
                         id: true,
@@ -64,7 +65,6 @@ export class InterviewRuntimeService {
                                 questionType: true,
                                 questionText: true,
                                 origin: true,
-                                adaptiveAction: true,
                                 answeredAt: true,
                                 adaptiveStatus: true,
                                 plannedStatus: true,
@@ -100,16 +100,16 @@ export class InterviewRuntimeService {
         const currentTurn = processing
             ? undefined
             : session.turns.find((turn) => this.isActiveTurn(turn));
-        const relevantTurns = session.turns.filter((turn) =>
-            this.isProgressRelevant(turn),
-        );
-        const totalQuestions = relevantTurns.length;
+
         const totalSections = new Set(
             session.turns.map((turn) => turn.sectionIndex),
         ).size;
         const displayOrdinal = currentTurn
             ? session.turns.findIndex((turn) => turn.id === currentTurn.id) + 1
             : completedQuestions;
+        const completed =
+            interview.status === InterviewStatus.COMPLETED &&
+            session.completedAt !== null;
         return {
             interview: this.summary(interview),
             session: {
@@ -127,22 +127,9 @@ export class InterviewRuntimeService {
                       sectionTitle: currentTurn.sectionTitle,
                       questionType: currentTurn.questionType,
                       questionText: currentTurn.questionText,
-                      isAdaptive:
-                          currentTurn.origin === InterviewTurnOrigin.ADAPTIVE,
-                      transition: this.naturalTransition(
-                          currentTurn.adaptiveAction,
-                      ),
                   }
                 : null,
             progress: {
-                completedQuestions,
-                totalQuestions,
-                percentage:
-                    totalQuestions === 0
-                        ? 0
-                        : Math.round(
-                              (completedQuestions / totalQuestions) * 100,
-                          ),
                 currentSection: currentTurn?.sectionTitle ?? null,
                 sectionNumber: currentTurn
                     ? currentTurn.sectionIndex + 1
@@ -150,9 +137,7 @@ export class InterviewRuntimeService {
                 totalSections,
             },
             processing,
-            completed:
-                interview.status === InterviewStatus.COMPLETED &&
-                session.completedAt !== null,
+            completed,
         };
     }
 
@@ -300,7 +285,6 @@ export class InterviewRuntimeService {
                                     answerText: true,
                                     answerAssessment: true,
                                     origin: true,
-                                    adaptiveAction: true,
                                     assistanceLevel: true,
                                     depth: true,
                                     answeredAt: true,
@@ -383,28 +367,6 @@ export class InterviewRuntimeService {
                           current.rootPlannedQuestionKey,
                   )
             : undefined;
-        const elapsedMinutes = Math.max(
-            0,
-            (Date.now() - interview.session!.startedAt.getTime()) / 60_000,
-        );
-        const currentSectionPlan = plan.success
-            ? plan.data.sections[current.sectionIndex]
-            : undefined;
-        const priorSectionAnsweredAt = turns
-            .filter(
-                (turn) =>
-                    turn.sectionIndex < current.sectionIndex &&
-                    turn.answeredAt !== null,
-            )
-            .map((turn) => turn.answeredAt!.getTime());
-        const sectionStartedAt =
-            priorSectionAnsweredAt.length > 0
-                ? Math.max(...priorSectionAnsweredAt)
-                : interview.session!.startedAt.getTime();
-        const sectionElapsedMinutes = Math.max(
-            0,
-            (Date.now() - sectionStartedAt) / 60_000,
-        );
         const remainingPlanned = turns
             .filter(
                 (turn) =>
@@ -456,28 +418,6 @@ export class InterviewRuntimeService {
                     plannedQuestion?.followUpStrategy ?? null,
             },
             candidateAnswer,
-            timing: {
-                targetDurationMinutes: interview.durationMinutes,
-                elapsedMinutes: Math.round(elapsedMinutes * 10) / 10,
-                estimatedRemainingMinutes: Math.max(
-                    0,
-                    interview.durationMinutes - elapsedMinutes,
-                ),
-                currentSectionBudgetMinutes:
-                    currentSectionPlan?.durationMinutes ?? null,
-                currentSectionElapsedMinutes:
-                    Math.round(sectionElapsedMinutes * 10) / 10,
-                currentSectionRemainingMinutes: currentSectionPlan
-                    ? Math.max(
-                          0,
-                          Math.round(
-                              (currentSectionPlan.durationMinutes -
-                                  sectionElapsedMinutes) *
-                                  10,
-                          ) / 10,
-                      )
-                    : null,
-            },
             strategy: plan.success
                 ? {
                       roleBaseline: plan.data.roleBaseline ?? [],
@@ -574,7 +514,8 @@ export class InterviewRuntimeService {
                         pending.some(
                             (candidate) =>
                                 candidate.plannedQuestionKey === key &&
-                                candidate.questionType !== 'CANDIDATE',
+                                candidate.questionType !== 'CANDIDATE' &&
+                                candidate.sectionIndex <= turn.sectionIndex,
                         ),
                 ),
             );
@@ -604,6 +545,7 @@ export class InterviewRuntimeService {
                 for (const candidate of pending) {
                     if (
                         candidate.questionType !== 'CANDIDATE' &&
+                        candidate.sectionIndex === turn.sectionIndex &&
                         candidate.plannedQuestionKey !==
                             decision.selectedPlannedQuestionKey &&
                         this.plannedQuestionMetadata(
@@ -633,65 +575,11 @@ export class InterviewRuntimeService {
                 }
             }
 
-            const sectionTiming = this.sectionTiming(
-                interview.session!.plan.planData,
-                interview.session!.startedAt,
-                interview.session!.turns,
-                turn.sectionIndex,
-            );
             let candidatesAfterCoverage = pending.filter(
                 (candidate) =>
                     !coveredKeys.has(candidate.plannedQuestionKey) &&
                     !redundantKeys.has(candidate.plannedQuestionKey),
             );
-            if (sectionTiming.elapsedRatio >= 1) {
-                const unusedKeys = candidatesAfterCoverage
-                    .filter((candidate) => {
-                        if (
-                            candidate.sectionIndex !== turn.sectionIndex ||
-                            candidate.questionType === 'CANDIDATE'
-                        )
-                            return false;
-                        const priority = this.plannedQuestionMetadata(
-                            interview.session!.plan.planData,
-                            candidate.plannedQuestionKey,
-                        ).priority;
-                        return priority !== 'KEY' && priority !== 'HIGH';
-                    })
-                    .map((candidate) => candidate.plannedQuestionKey);
-                if (unusedKeys.length > 0) {
-                    await tx.interviewTurn.updateMany({
-                        where: {
-                            sessionId: interview.session!.id,
-                            plannedQuestionKey: { in: unusedKeys },
-                            plannedStatus:
-                                InterviewPlannedQuestionStatus.PENDING,
-                        },
-                        data: {
-                            plannedStatus:
-                                InterviewPlannedQuestionStatus.UNUSED,
-                            dispositionReason:
-                                'Section time budget reached; lower-priority coverage option was not needed.',
-                        },
-                    });
-                    const unused = new Set(unusedKeys);
-                    candidatesAfterCoverage = candidatesAfterCoverage.filter(
-                        (candidate) =>
-                            !unused.has(candidate.plannedQuestionKey),
-                    );
-                }
-            }
-            const remainingPlanned = candidatesAfterCoverage.length;
-            const currentSectionHighPriorityRemaining =
-                candidatesAfterCoverage.filter((candidate) => {
-                    if (candidate.sectionIndex !== turn.sectionIndex)
-                        return false;
-                    const priority = this.plannedQuestionMetadata(
-                        interview.session!.plan.planData,
-                        candidate.plannedQuestionKey,
-                    ).priority;
-                    return priority === 'KEY' || priority === 'HIGH';
-                }).length;
             const rootAdaptiveCount = await tx.interviewTurn.count({
                 where: {
                     sessionId: interview.session!.id,
@@ -702,16 +590,11 @@ export class InterviewRuntimeService {
             let action = this.guardDecision({
                 decision,
                 current: turn,
-                remainingPlanned,
                 rootAdaptiveCount,
                 plannedMaxDepth: this.plannedMaxDepth(
                     interview.session!.plan.planData,
                     turn.rootPlannedQuestionKey,
                 ),
-                startedAt: interview.session!.startedAt,
-                durationMinutes: interview.durationMinutes,
-                sectionElapsedRatio: sectionTiming.elapsedRatio,
-                currentSectionHighPriorityRemaining,
                 sourceContext: interview.sourceContextSnapshot,
             });
             if (
@@ -724,6 +607,10 @@ export class InterviewRuntimeService {
             ) {
                 action = null;
             }
+
+            this.logger.debug(
+                `Adaptive decision for turn ${turn.id}: ai=${decision?.decision ?? 'FALLBACK'}, guarded=${action ?? 'NEXT'}, saturated=${decision?.topicSaturated ?? false}, depth=${turn.depth}`,
+            );
 
             let createdAdaptive = false;
             if (action && decision?.nextQuestion) {
@@ -770,34 +657,29 @@ export class InterviewRuntimeService {
             }
 
             if (!createdAdaptive) {
-                const available =
-                    !decision || sectionTiming.elapsedRatio >= 0.8
-                        ? [...candidatesAfterCoverage].sort((left, right) => {
-                              const rank = (
-                                  candidate: (typeof pending)[number],
-                              ) => {
-                                  if (candidate.questionType === 'CANDIDATE')
-                                      return 3;
-                                  if (
-                                      candidate.sectionIndex !==
-                                      turn.sectionIndex
-                                  )
-                                      return 2;
-                                  const priority = this.plannedQuestionMetadata(
-                                      interview.session!.plan.planData,
-                                      candidate.plannedQuestionKey,
-                                  ).priority;
-                                  return priority === 'KEY' ||
-                                      priority === 'HIGH'
-                                      ? 0
-                                      : 1;
-                              };
-                              return (
-                                  rank(left) - rank(right) ||
-                                  left.runtimeOrder - right.runtimeOrder
-                              );
-                          })
-                        : candidatesAfterCoverage;
+                const available = !decision
+                    ? [...candidatesAfterCoverage].sort((left, right) => {
+                          const rank = (
+                              candidate: (typeof pending)[number],
+                          ) => {
+                              if (candidate.questionType === 'CANDIDATE')
+                                  return 3;
+                              if (candidate.sectionIndex !== turn.sectionIndex)
+                                  return 2;
+                              const priority = this.plannedQuestionMetadata(
+                                  interview.session!.plan.planData,
+                                  candidate.plannedQuestionKey,
+                              ).priority;
+                              return priority === 'KEY' || priority === 'HIGH'
+                                  ? 0
+                                  : 1;
+                          };
+                          return (
+                              rank(left) - rank(right) ||
+                              left.runtimeOrder - right.runtimeOrder
+                          );
+                      })
+                    : candidatesAfterCoverage;
                 const next = this.chooseNextPlanned(
                     available,
                     decision?.selectedPlannedQuestionKey,
@@ -885,13 +767,8 @@ export class InterviewRuntimeService {
     private guardDecision(input: {
         decision: AdaptiveInterviewResult | undefined;
         current: { questionType: string; topic: string | null; depth: number };
-        remainingPlanned: number;
         rootAdaptiveCount: number;
         plannedMaxDepth: number;
-        startedAt: Date;
-        durationMinutes: number;
-        sectionElapsedRatio: number;
-        currentSectionHighPriorityRemaining: number;
         sourceContext: Prisma.JsonValue;
     }): InterviewAdaptiveAction | null {
         const { decision, current } = input;
@@ -902,15 +779,6 @@ export class InterviewRuntimeService {
             decision.topicSaturated ||
             !decision.nextQuestion ||
             current.questionType === 'CANDIDATE'
-        )
-            return null;
-        const elapsedRatio =
-            (Date.now() - input.startedAt.getTime()) /
-            (input.durationMinutes * 60_000);
-        if (elapsedRatio >= 0.9 || input.sectionElapsedRatio >= 1) return null;
-        if (
-            input.sectionElapsedRatio >= 0.8 &&
-            input.currentSectionHighPriorityRemaining > 0
         )
             return null;
         const priority = this.topicPriority(
@@ -927,7 +795,6 @@ export class InterviewRuntimeService {
             input.rootAdaptiveCount >= priorityLimit
         )
             return null;
-        if (elapsedRatio >= 0.65 && input.remainingPlanned >= 3) return null;
         return decision.decision as InterviewAdaptiveAction;
     }
 
@@ -974,19 +841,6 @@ export class InterviewRuntimeService {
         if (turn.answeredAt !== null) return false;
         return (
             turn.origin === InterviewTurnOrigin.ADAPTIVE ||
-            turn.plannedStatus === InterviewPlannedQuestionStatus.ASKED ||
-            (turn.origin === InterviewTurnOrigin.PLANNED_MAIN &&
-                turn.plannedStatus == null)
-        );
-    }
-
-    private isProgressRelevant(turn: {
-        origin: InterviewTurnOrigin;
-        plannedStatus?: InterviewPlannedQuestionStatus | null;
-    }) {
-        return (
-            turn.origin === InterviewTurnOrigin.ADAPTIVE ||
-            turn.plannedStatus === InterviewPlannedQuestionStatus.PENDING ||
             turn.plannedStatus === InterviewPlannedQuestionStatus.ASKED ||
             (turn.origin === InterviewTurnOrigin.PLANNED_MAIN &&
                 turn.plannedStatus == null)
@@ -1045,49 +899,25 @@ export class InterviewRuntimeService {
         });
     }
 
-    private sectionTiming(
-        planData: Prisma.JsonValue,
-        sessionStartedAt: Date,
-        turns: Array<{ sectionIndex: number; answeredAt: Date | null }>,
-        currentSectionIndex: number,
-    ) {
-        const parsed = InterviewPlanResultSchema.safeParse(planData);
-        const budgetMinutes = parsed.success
-            ? (parsed.data.sections[currentSectionIndex]?.durationMinutes ??
-              null)
-            : null;
-        const priorAnsweredAt = turns
-            .filter(
-                (turn) =>
-                    turn.sectionIndex < currentSectionIndex &&
-                    turn.answeredAt !== null,
-            )
-            .map((turn) => turn.answeredAt!.getTime());
-        const startedAt =
-            priorAnsweredAt.length > 0
-                ? Math.max(...priorAnsweredAt)
-                : sessionStartedAt.getTime();
-        const elapsedMinutes = Math.max(0, (Date.now() - startedAt) / 60_000);
-        return {
-            budgetMinutes,
-            elapsedMinutes,
-            elapsedRatio:
-                budgetMinutes && budgetMinutes > 0
-                    ? elapsedMinutes / budgetMinutes
-                    : 0,
-        };
-    }
     private chooseNextPlanned<
         T extends {
             id: string;
             plannedQuestionKey: string;
             questionType: string;
+            sectionIndex: number;
+            runtimeOrder: number;
         },
     >(turns: T[], selectedKey?: string | null) {
         const nonClosing = turns.filter(
             (turn) => turn.questionType !== 'CANDIDATE',
         );
-        const eligible = nonClosing.length > 0 ? nonClosing : turns;
+        const candidates = nonClosing.length > 0 ? nonClosing : turns;
+        const earliestSectionIndex = Math.min(
+            ...candidates.map((turn) => turn.sectionIndex),
+        );
+        const eligible = candidates
+            .filter((turn) => turn.sectionIndex === earliestSectionIndex)
+            .sort((left, right) => left.runtimeOrder - right.runtimeOrder);
         return (
             eligible.find((turn) => turn.plannedQuestionKey === selectedKey) ??
             eligible[0]
@@ -1274,19 +1104,6 @@ export class InterviewRuntimeService {
         return current;
     }
 
-    private naturalTransition(action: InterviewAdaptiveAction | null) {
-        if (action === InterviewAdaptiveAction.REPHRASE)
-            return 'Để mình diễn đạt câu hỏi theo một cách khác.';
-        if (action === InterviewAdaptiveAction.DECREASE_DEPTH)
-            return 'Mình sẽ đưa câu hỏi về một tình huống cụ thể hơn.';
-        if (
-            action === InterviewAdaptiveAction.FOLLOW_UP ||
-            action === InterviewAdaptiveAction.INCREASE_DEPTH
-        )
-            return 'Mình muốn tìm hiểu thêm một chút về ý bạn vừa chia sẻ.';
-        return null;
-    }
-
     private emptyState(interview: {
         id: string;
         status: InterviewStatus;
@@ -1294,15 +1111,13 @@ export class InterviewRuntimeService {
         targetRole: string;
         targetLevel: string | null;
         durationMinutes: number;
+        focusAreas?: Prisma.JsonValue;
     }) {
         return {
             interview: this.summary(interview),
             session: null,
             currentTurn: null,
             progress: {
-                completedQuestions: 0,
-                totalQuestions: 0,
-                percentage: 0,
                 currentSection: null,
                 sectionNumber: 0,
                 totalSections: 0,
@@ -1319,6 +1134,7 @@ export class InterviewRuntimeService {
         targetRole: string;
         targetLevel: string | null;
         durationMinutes: number;
+        focusAreas?: Prisma.JsonValue;
     }) {
         return {
             id: interview.id,
@@ -1327,7 +1143,16 @@ export class InterviewRuntimeService {
             targetRole: interview.targetRole,
             targetLevel: interview.targetLevel,
             durationMinutes: interview.durationMinutes,
+            focusAreas: this.stringArray(interview.focusAreas),
         };
+    }
+
+    private stringArray(value: Prisma.JsonValue | undefined) {
+        if (!Array.isArray(value)) return [];
+        return value.filter(
+            (item): item is string =>
+                typeof item === 'string' && item.trim().length > 0,
+        );
     }
 
     private async tryGetActiveState(userId: string, interviewId: string) {

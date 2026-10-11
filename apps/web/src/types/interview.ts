@@ -186,6 +186,7 @@ export interface InterviewRuntimeState {
         targetRole: string;
         targetLevel: string | null;
         durationMinutes: number;
+        focusAreas: string[];
     };
     session: {
         id: string;
@@ -201,13 +202,8 @@ export interface InterviewRuntimeState {
         sectionTitle: string;
         questionType: InterviewPlanData['sections'][number]['questions'][number]['type'];
         questionText: string;
-        isAdaptive: boolean;
-        transition: string | null;
     } | null;
     progress: {
-        completedQuestions: number;
-        totalQuestions: number;
-        percentage: number;
         currentSection: string | null;
         sectionNumber: number;
         totalSections: number;
