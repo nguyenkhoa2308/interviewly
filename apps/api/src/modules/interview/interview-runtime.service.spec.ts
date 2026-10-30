@@ -298,6 +298,30 @@ describe('InterviewRuntimeService adaptive runtime', () => {
         expect(state.currentTurn).not.toHaveProperty('isAdaptive');
         expect(state.currentTurn).not.toHaveProperty('transition');
     });
+    it('returns only committed answers in the live transcript projection', async () => {
+        const answeredAt = new Date('2026-10-17T10:00:00.000Z');
+        prisma.interview.findFirst.mockResolvedValue(
+            stateInterview(InterviewStatus.IN_PROGRESS, [
+                {
+                    ...currentTurn,
+                    answerText: 'Câu trả lời đã xác nhận',
+                    answeredAt,
+                    plannedStatus: InterviewPlannedQuestionStatus.COMPLETED,
+                },
+                nextTurn,
+            ]),
+        );
+
+        const state = await service.getState(userId, interviewId);
+        expect(state.transcript).toEqual([
+            expect.objectContaining({
+                id: currentTurn.id,
+                questionText: currentTurn.questionText,
+                answerText: 'Câu trả lời đã xác nhận',
+                answeredAt,
+            }),
+        ]);
+    });
     it('starts with a frozen plan and snapshots planned runtime order', async () => {
         prisma.interview.findFirst
             .mockResolvedValueOnce({

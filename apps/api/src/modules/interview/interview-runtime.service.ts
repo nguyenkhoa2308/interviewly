@@ -25,6 +25,7 @@ import {
     InterviewPlanResultSchema,
     type InterviewPlanResult,
 } from './planning/interview-plan.schema';
+import { getRequiredRoleBaselines } from './planning/role-baseline.catalog';
 
 const ADAPTIVE_STALE_MS = 90_000;
 const MAX_ADAPTIVE_DEPTH = 2;
@@ -64,6 +65,7 @@ export class InterviewRuntimeService {
                                 sectionTitle: true,
                                 questionType: true,
                                 questionText: true,
+                                answerText: true,
                                 origin: true,
                                 answeredAt: true,
                                 adaptiveStatus: true,
@@ -129,6 +131,18 @@ export class InterviewRuntimeService {
                       questionText: currentTurn.questionText,
                   }
                 : null,
+            transcript: session.turns
+                .filter((turn) => turn.answeredAt !== null && turn.answerText)
+                .map((turn) => ({
+                    id: turn.id,
+                    ordinal:
+                        session.turns.findIndex((item) => item.id === turn.id) +
+                        1,
+                    sectionTitle: turn.sectionTitle,
+                    questionText: turn.questionText,
+                    answerText: turn.answerText!,
+                    answeredAt: turn.answeredAt!,
+                })),
             progress: {
                 currentSection: currentTurn?.sectionTitle ?? null,
                 sectionNumber: currentTurn
@@ -515,7 +529,13 @@ export class InterviewRuntimeService {
                             (candidate) =>
                                 candidate.plannedQuestionKey === key &&
                                 candidate.questionType !== 'CANDIDATE' &&
-                                candidate.sectionIndex <= turn.sectionIndex,
+                                candidate.sectionIndex <= turn.sectionIndex &&
+                                !this.isMandatoryBaselineQuestion(
+                                    interview.session!.plan.planData,
+                                    candidate.plannedQuestionKey,
+                                    interview.targetRole,
+                                    interview.interviewType,
+                                ),
                         ),
                 ),
             );
@@ -971,6 +991,25 @@ export class InterviewRuntimeService {
             probeAreas: question.probeAreas ?? competency?.probeAreas ?? [],
         };
     }
+    private isMandatoryBaselineQuestion(
+        planData: Prisma.JsonValue,
+        key: string,
+        targetRole: string,
+        interviewType: string,
+    ) {
+        const metadata = this.plannedQuestionMetadata(planData, key);
+        const requiredKeys = new Set(
+            getRequiredRoleBaselines(targetRole, interviewType).map(
+                (baseline) => baseline.key,
+            ),
+        );
+        return (
+            metadata.priority === 'KEY' &&
+            metadata.sources?.includes('ROLE_BASELINE') === true &&
+            metadata.competencyKey !== null &&
+            requiredKeys.has(metadata.competencyKey)
+        );
+    }
     private async recoverStaleAdaptiveWork(
         userId: string,
         interviewId: string,
@@ -1005,20 +1044,20 @@ export class InterviewRuntimeService {
             });
             if (!session) continue;
             const now = new Date();
-            await this.prisma.$transaction([
-                this.prisma.interviewSession.updateMany({
+            await this.prisma.$transaction(async (tx) => {
+                await tx.interviewSession.updateMany({
                     where: { id: sessionId, completedAt: null },
                     data: { completedAt: now },
-                }),
-                this.prisma.interview.updateMany({
+                });
+                await tx.interview.updateMany({
                     where: {
                         id: session.interviewId,
                         userId,
                         status: InterviewStatus.IN_PROGRESS,
                     },
                     data: { status: InterviewStatus.COMPLETED },
-                }),
-            ]);
+                });
+            });
         }
         await this.ensureActiveTurn(userId, interviewId);
     }
@@ -1117,6 +1156,7 @@ export class InterviewRuntimeService {
             interview: this.summary(interview),
             session: null,
             currentTurn: null,
+            transcript: [],
             progress: {
                 currentSection: null,
                 sectionNumber: 0,
