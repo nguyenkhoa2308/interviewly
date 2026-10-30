@@ -30,6 +30,14 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({
     toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
+vi.mock('@/hooks/settings/use-settings', () => ({
+    useSettings: () => ({
+        data: {
+            general: { preferredLanguage: 'VI' },
+            voiceAndAudio: { voiceName: null, speechSpeed: 1, volume: 1 },
+        },
+    }),
+}));
 vi.mock('@/hooks/interview/use-interviews', () => ({
     useInterviewRuntime: () => ({
         data: runtimeState,
@@ -69,6 +77,7 @@ const activeState: InterviewRuntimeState = {
         questionType: 'TECHNICAL',
         questionText: 'Bạn tối ưu render React như thế nào?',
     },
+    transcript: [],
     progress: {
         currentSection: 'Kỹ thuật',
         sectionNumber: 2,
@@ -296,7 +305,7 @@ describe('InterviewSessionPage', () => {
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
 
-    it('shows completion without exposing a fake Phase 8 report', () => {
+    it('links a completed session to its persisted evaluation report', () => {
         runtimeState = {
             ...structuredClone(activeState),
             currentTurn: null,
@@ -320,7 +329,7 @@ describe('InterviewSessionPage', () => {
             screen.queryByText(/overall score|hiring recommendation/i),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Về danh sách phỏng vấn' }),
-        ).toHaveAttribute('href', '/interviews');
+            screen.getByRole('link', { name: 'Xem báo cáo đánh giá' }),
+        ).toHaveAttribute('href', '/interviews/interview-id/report');
     });
 });

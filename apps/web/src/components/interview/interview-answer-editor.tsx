@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import CharacterCount from '@tiptap/extension-character-count';
-import { Extension } from '@tiptap/core';
+import { Extension, type JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import {
@@ -61,10 +61,21 @@ function getPlainText(editor: NonNullable<ReturnType<typeof useEditor>>) {
     });
 }
 
+function plainTextToDocument(value: string): JSONContent {
+    return {
+        type: 'doc',
+        content: value.split('\n').map((line) => ({
+            type: 'paragraph',
+            content: line ? [{ type: 'text', text: line }] : [],
+        })),
+    };
+}
+
 type InterviewAnswerEditorProps = {
     value: string;
     error: string | null;
     pending: boolean;
+    syncExternalValue?: boolean;
     onChange: (value: string) => void;
     onSubmit: (value: string) => void;
 };
@@ -73,6 +84,7 @@ export function InterviewAnswerEditor({
     value,
     error,
     pending,
+    syncExternalValue = false,
     onChange,
     onSubmit,
 }: InterviewAnswerEditorProps) {
@@ -106,6 +118,16 @@ export function InterviewAnswerEditor({
     useEffect(() => {
         editor?.setEditable(!pending);
     }, [editor, pending]);
+
+    useEffect(() => {
+        if (!editor || !syncExternalValue || getPlainText(editor) === value)
+            return;
+
+        editor.commands.setContent(plainTextToDocument(value), {
+            emitUpdate: false,
+        });
+        editor.commands.focus('end');
+    }, [editor, syncExternalValue, value]);
 
     const editorState = useEditorState({
         editor,

@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,8 +16,11 @@ import {
     CheckCircle2,
     Gauge,
     Lightbulb,
-    LoaderCircle,
     LogOut,
+    Mic,
+    MicOff,
+    Volume2,
+    VolumeX,
     RotateCw,
     Sparkles,
 } from 'lucide-react';
@@ -24,10 +33,20 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { getInterviewTypeLabel } from '@/constants/interview-options';
 import {
     useInterviewRuntime,
-    useStartInterview,
     useSubmitInterviewAnswer,
 } from '@/hooks/interview/use-interviews';
 import { ApiError } from '@/lib/api-error';
+import { useSettings } from '@/hooks/settings/use-settings';
+import {
+    useInterviewSpeechRecognition,
+    useInterviewSpeechSynthesis,
+} from '@/hooks/interview/use-interview-speech';
+import {
+    readInterviewVoicePreference,
+    writeInterviewVoicePreference,
+    type InterviewInputMode,
+    type InterviewOutputMode,
+} from '@/lib/interview-voice';
 import { cn } from '@/lib/utils';
 import type { InterviewRuntimeState } from '@/types/interview';
 
@@ -43,15 +62,85 @@ const levelLabels: Record<string, string> = {
 export function InterviewSessionPage({ id }: { id: string }) {
     const router = useRouter();
     const runtime = useInterviewRuntime(id);
-    const start = useStartInterview(id);
     const submit = useSubmitInterviewAnswer(id);
     const [answer, setAnswer] = useState('');
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [leaveOpen, setLeaveOpen] = useState(false);
+    const [inputMode, setInputMode] = useState<InterviewInputMode>('TEXT');
+    const [outputMode, setOutputMode] =
+        useState<InterviewOutputMode>('TEXT_ONLY');
+    const settings = useSettings();
     const submittingRef = useRef(false);
     const previousTurnId = useRef<string | null>(null);
     const state = runtime.data;
     const turnId = state?.currentTurn?.id ?? null;
+    const handleVoiceTranscript = useCallback(
+        (text: string) => setAnswer(text),
+        [],
+    );
+    const recognition = useInterviewSpeechRecognition({
+        language:
+            settings.data?.general.preferredLanguage === 'EN'
+                ? 'en-US'
+                : 'vi-VN',
+        onTranscript: handleVoiceTranscript,
+    });
+    const synthesis = useInterviewSpeechSynthesis();
+
+    useEffect(() => {
+        let active = true;
+        queueMicrotask(() => {
+            if (!active) return;
+            const preference = readInterviewVoicePreference(id);
+            setInputMode(preference.inputMode);
+            setOutputMode(preference.outputMode);
+        });
+        return () => {
+            active = false;
+        };
+    }, [id]);
+
+    useEffect(() => {
+        const question = state?.currentTurn;
+        if (!question || outputMode !== 'VOICE_AND_TEXT') return;
+        const spokenKey = `interviewly:spoken:${id}`;
+        if (sessionStorage.getItem(spokenKey) === question.id) return;
+        sessionStorage.setItem(spokenKey, question.id);
+        synthesis.speak(question.questionText, {
+            voiceName: settings.data?.voiceAndAudio.voiceName,
+            rate: settings.data?.voiceAndAudio.speechSpeed,
+            volume: settings.data?.voiceAndAudio.volume,
+        });
+    }, [
+        id,
+        outputMode,
+        settings.data?.voiceAndAudio,
+        state?.currentTurn,
+        synthesis,
+    ]);
+
+    function updateModes(
+        nextInput: InterviewInputMode,
+        nextOutput = outputMode,
+    ) {
+        recognition.abort();
+        synthesis.stop();
+        setInputMode(nextInput);
+        setOutputMode(nextOutput);
+        writeInterviewVoicePreference(id, {
+            inputMode: nextInput,
+            outputMode: nextOutput,
+        });
+    }
+
+    function updateOutput(nextOutput: InterviewOutputMode) {
+        synthesis.stop();
+        setOutputMode(nextOutput);
+        writeInterviewVoicePreference(id, {
+            inputMode,
+            outputMode: nextOutput,
+        });
+    }
 
     useEffect(() => {
         if (
@@ -64,19 +153,6 @@ export function InterviewSessionPage({ id }: { id: string }) {
         }
         previousTurnId.current = turnId;
     }, [turnId]);
-
-    async function begin() {
-        try {
-            await start.mutateAsync();
-            toast.success('Buổi phỏng vấn đã bắt đầu');
-        } catch (error) {
-            toast.error(
-                error instanceof Error
-                    ? error.message
-                    : 'Không thể bắt đầu buổi phỏng vấn.',
-            );
-        }
-    }
 
     async function sendAnswer(answerOverride = answer) {
         const normalized = answerOverride.trim();
@@ -122,19 +198,17 @@ export function InterviewSessionPage({ id }: { id: string }) {
         }
     }
 
+    useEffect(() => {
+        if (!runtime.isPending && state && !state.session) {
+            router.replace(`/interviews/${id}/setup`);
+        }
+    }, [id, router, runtime.isPending, state]);
+
     if (runtime.isPending) return <SessionSkeleton />;
     if (runtime.isError || !state) {
         return <SessionError onRetry={() => void runtime.refetch()} />;
     }
-    if (!state.session) {
-        return (
-            <SessionStart
-                state={state}
-                pending={start.isPending}
-                onStart={() => void begin()}
-            />
-        );
-    }
+    if (!state.session) return <SessionSkeleton />;
 
     return (
         <>
@@ -162,7 +236,7 @@ export function InterviewSessionPage({ id }: { id: string }) {
                 <div className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
                     <div className="min-w-0">
                         {state.completed ? (
-                            <CompletedState />
+                            <CompletedState interviewId={id} />
                         ) : state.currentTurn ? (
                             <QuestionCard
                                 state={state}
@@ -174,6 +248,36 @@ export function InterviewSessionPage({ id }: { id: string }) {
                                     if (submitError) setSubmitError(null);
                                 }}
                                 onSubmit={(value) => void sendAnswer(value)}
+                                inputMode={inputMode}
+                                outputMode={outputMode}
+                                listening={recognition.listening}
+                                speaking={synthesis.speaking}
+                                speechError={
+                                    recognition.error ?? synthesis.error
+                                }
+                                onInputModeChange={updateModes}
+                                onOutputModeChange={updateOutput}
+                                onStartListening={() => {
+                                    synthesis.stop();
+                                    recognition.start();
+                                }}
+                                onStopListening={recognition.stop}
+                                onReplay={() => {
+                                    if (state.currentTurn) {
+                                        synthesis.speak(
+                                            state.currentTurn.questionText,
+                                            {
+                                                voiceName:
+                                                    settings.data?.voiceAndAudio
+                                                        .voiceName,
+                                                rate: settings.data
+                                                    ?.voiceAndAudio.speechSpeed,
+                                                volume: settings.data
+                                                    ?.voiceAndAudio.volume,
+                                            },
+                                        );
+                                    }
+                                }}
                             />
                         ) : (
                             <ThinkingState />
@@ -282,6 +386,16 @@ function QuestionCard({
     pending,
     onAnswerChange,
     onSubmit,
+    inputMode,
+    outputMode,
+    listening,
+    speaking,
+    speechError,
+    onInputModeChange,
+    onOutputModeChange,
+    onStartListening,
+    onStopListening,
+    onReplay,
 }: {
     state: InterviewRuntimeState;
     answer: string;
@@ -289,6 +403,16 @@ function QuestionCard({
     pending: boolean;
     onAnswerChange: (value: string) => void;
     onSubmit: (value: string) => void;
+    inputMode: InterviewInputMode;
+    outputMode: InterviewOutputMode;
+    listening: boolean;
+    speaking: boolean;
+    speechError: string | null;
+    onInputModeChange: (mode: InterviewInputMode) => void;
+    onOutputModeChange: (mode: InterviewOutputMode) => void;
+    onStartListening: () => void;
+    onStopListening: () => void;
+    onReplay: () => void;
 }) {
     const turn = state.currentTurn!;
 
@@ -316,12 +440,144 @@ function QuestionCard({
                     </h2>
                 </div>
 
+                <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t bg-slate-50/70 px-5 py-3 sm:px-7 lg:px-8">
+                    <div
+                        className="flex rounded-lg border border-slate-200 bg-white p-1"
+                        aria-label="Chế độ trả lời"
+                    >
+                        <button
+                            type="button"
+                            className={cn(
+                                'rounded-md px-3 py-1.5 text-xs font-bold',
+                                inputMode === 'VOICE'
+                                    ? 'bg-primary text-white'
+                                    : 'text-slate-500',
+                            )}
+                            onClick={() => onInputModeChange('VOICE')}
+                        >
+                            <Mic className="mr-1.5 inline size-3.5" />
+                            Giọng nói
+                        </button>
+                        <button
+                            type="button"
+                            className={cn(
+                                'rounded-md px-3 py-1.5 text-xs font-bold',
+                                inputMode === 'TEXT'
+                                    ? 'bg-primary text-white'
+                                    : 'text-slate-500',
+                            )}
+                            onClick={() => onInputModeChange('TEXT')}
+                        >
+                            Văn bản
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg font-bold"
+                            onClick={onReplay}
+                            disabled={speaking}
+                        >
+                            <Volume2 className="size-4" />
+                            {speaking ? 'Đang phát...' : 'Nghe lại'}
+                        </Button>
+                        <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={
+                                outputMode === 'VOICE_AND_TEXT'
+                                    ? 'Tắt giọng đọc'
+                                    : 'Bật giọng đọc'
+                            }
+                            onClick={() =>
+                                onOutputModeChange(
+                                    outputMode === 'VOICE_AND_TEXT'
+                                        ? 'TEXT_ONLY'
+                                        : 'VOICE_AND_TEXT',
+                                )
+                            }
+                        >
+                            {outputMode === 'VOICE_AND_TEXT' ? (
+                                <Volume2 className="size-4" />
+                            ) : (
+                                <VolumeX className="size-4" />
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
+                {inputMode === 'VOICE' && (
+                    <div className="border-border border-t px-5 py-4 sm:px-7 lg:px-8">
+                        <div
+                            className={cn(
+                                'flex flex-col items-center justify-between gap-3 rounded-xl border p-4 sm:flex-row',
+                                listening
+                                    ? 'border-rose-200 bg-rose-50/70'
+                                    : 'border-violet-100 bg-violet-50/60',
+                            )}
+                        >
+                            <div>
+                                <p className="font-extrabold text-slate-950">
+                                    {listening
+                                        ? 'Đang nghe câu trả lời...'
+                                        : 'Trả lời bằng giọng nói'}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Bản chép lời xuất hiện bên dưới để bạn kiểm
+                                    tra và chỉnh sửa trước khi gửi.
+                                </p>
+                                {speechError && (
+                                    <p className="mt-1 text-sm font-semibold text-rose-600">
+                                        {speechError}
+                                    </p>
+                                )}
+                                {listening && (
+                                    <div
+                                        className="mt-3 rounded-lg border border-rose-200 bg-white/80 px-3 py-2.5"
+                                        aria-live="polite"
+                                    >
+                                        <p className="text-xs font-bold text-rose-600">
+                                            Mic đang nhận được
+                                        </p>
+                                        <p className="mt-1 min-h-5 text-sm leading-5 text-slate-700">
+                                            {answer.trim() ||
+                                                'Hãy bắt đầu nói...'}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            <Button
+                                type="button"
+                                variant={listening ? 'destructive' : 'default'}
+                                className="rounded-lg font-bold"
+                                onClick={
+                                    listening
+                                        ? onStopListening
+                                        : onStartListening
+                                }
+                                disabled={speaking}
+                            >
+                                {listening ? (
+                                    <MicOff className="size-4" />
+                                ) : (
+                                    <Mic className="size-4" />
+                                )}
+                                {listening ? 'Dừng ghi' : 'Bắt đầu nói'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="border-border border-t p-5 sm:p-7 lg:p-8">
                     <InterviewAnswerEditor
                         key={turn.id}
                         value={answer}
                         error={error}
                         pending={pending}
+                        syncExternalValue={listening}
                         onChange={onAnswerChange}
                         onSubmit={onSubmit}
                     />
@@ -400,7 +656,7 @@ function ThinkingState() {
     );
 }
 
-function CompletedState() {
+function CompletedState({ interviewId }: { interviewId: string }) {
     return (
         <section className="border-border bg-card grid min-h-[520px] place-items-center overflow-hidden rounded-xl border p-7 text-center shadow-[0_16px_44px_rgba(66,48,125,0.065)]">
             <div className="relative max-w-xl">
@@ -420,8 +676,8 @@ function CompletedState() {
                     asChild
                     className="relative mt-7 rounded-lg px-6 py-5 font-bold"
                 >
-                    <Link href="/interviews">
-                        Về danh sách phỏng vấn
+                    <Link href={`/interviews/${interviewId}/report`}>
+                        Xem báo cáo đánh giá
                         <ArrowRight className="size-4" />
                     </Link>
                 </Button>
@@ -438,6 +694,36 @@ function InterviewContextSidebar({ state }: { state: InterviewRuntimeState }) {
 
     return (
         <aside className="grid h-fit gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <SidebarCard
+                title="Transcript đã xác nhận"
+                icon={<Bot className="size-5" strokeWidth={2.2} />}
+            >
+                {state.transcript.length > 0 ? (
+                    <ol className="max-h-[360px] space-y-4 overflow-y-auto pr-1">
+                        {state.transcript.map((turn) => (
+                            <li
+                                key={turn.id}
+                                className="border-border border-b pb-4 last:border-0 last:pb-0"
+                            >
+                                <p className="text-primary text-xs font-extrabold">
+                                    Câu {turn.ordinal} · {turn.sectionTitle}
+                                </p>
+                                <p className="text-foreground mt-1.5 text-sm leading-5 font-bold">
+                                    {turn.questionText}
+                                </p>
+                                <p className="text-muted-foreground mt-2 line-clamp-4 text-sm leading-5">
+                                    {turn.answerText}
+                                </p>
+                            </li>
+                        ))}
+                    </ol>
+                ) : (
+                    <p className="text-muted-foreground text-sm leading-6">
+                        Câu trả lời chỉ xuất hiện tại đây sau khi bạn xác nhận
+                        gửi.
+                    </p>
+                )}
+            </SidebarCard>
             <SidebarCard
                 title="Thông tin buổi phỏng vấn"
                 icon={<Gauge className="size-5" strokeWidth={2.2} />}
@@ -545,62 +831,6 @@ function Tip({ children }: { children: ReactNode }) {
             />
             <span>{children}</span>
         </li>
-    );
-}
-
-function SessionStart({
-    state,
-    pending,
-    onStart,
-}: {
-    state: InterviewRuntimeState;
-    pending: boolean;
-    onStart: () => void;
-}) {
-    return (
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-            <PageBreadcrumb
-                items={[
-                    { label: 'Phỏng vấn', href: '/interviews' },
-                    { label: state.interview.targetRole },
-                ]}
-            />
-            <section className="border-border bg-card mt-7 overflow-hidden rounded-xl border p-7 text-center shadow-[0_16px_44px_rgba(66,48,125,0.055)] sm:p-12">
-                <span className="bg-secondary text-primary mx-auto grid size-16 place-items-center rounded-2xl">
-                    <Bot className="size-8" strokeWidth={2.1} />
-                </span>
-                <h1 className="text-card-foreground mt-5 text-2xl font-black sm:text-3xl">
-                    Sẵn sàng bắt đầu?
-                </h1>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-xl leading-7">
-                    Câu trả lời được lưu sau mỗi lần gửi. Bạn có thể rời trang
-                    và tiếp tục đúng câu hỏi hiện tại khi quay lại.
-                </p>
-                <div className="mx-auto mt-6 flex max-w-xl flex-wrap justify-center gap-2">
-                    <span className="bg-secondary text-secondary-foreground rounded-lg px-3 py-2 text-sm font-bold">
-                        {state.interview.targetRole}
-                    </span>
-                    <span className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm font-bold">
-                        {getInterviewTypeLabel(state.interview.interviewType)}
-                    </span>
-                    <span className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm font-bold">
-                        ~ {state.interview.durationMinutes} phút
-                    </span>
-                </div>
-                <Button
-                    className="mt-7 rounded-lg px-7 py-5 font-bold"
-                    disabled={pending}
-                    onClick={onStart}
-                >
-                    {pending ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                        <ArrowRight className="size-4" />
-                    )}
-                    Bắt đầu phỏng vấn
-                </Button>
-            </section>
-        </main>
     );
 }
 
