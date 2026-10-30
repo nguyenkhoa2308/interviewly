@@ -373,6 +373,11 @@ export class AuthService {
             },
             data: {
                 refreshTokenHash: newRefreshTokenHash,
+                expiresAt: calculateTokenExpiration(
+                    this.configService.getOrThrow<string>(
+                        'JWT_REFRESH_EXPIRES_IN',
+                    ),
+                ),
                 lastUsedAt: new Date(),
             },
         });

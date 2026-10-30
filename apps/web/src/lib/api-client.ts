@@ -28,7 +28,42 @@ const REFRESH_EXCLUDED_ENDPOINTS = [
     '/auth/google',
 ];
 
+const AUTH_REFRESH_LOCK = 'interviewly:auth-refresh';
+const AUTH_REFRESH_MARKER = 'interviewly:auth-refresh-at';
+
 let refreshPromise: Promise<void> | null = null;
+
+function readRefreshMarker(): number {
+    if (typeof window === 'undefined') return 0;
+    const value = Number(window.localStorage.getItem(AUTH_REFRESH_MARKER));
+    return Number.isFinite(value) ? value : 0;
+}
+
+function writeRefreshMarker(): void {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(AUTH_REFRESH_MARKER, String(Date.now()));
+}
+
+async function requestNewTokens(): Promise<void> {
+    await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+        {},
+        { withCredentials: true },
+    );
+    writeRefreshMarker();
+}
+
+async function refreshAcrossTabs(observedMarker: number): Promise<void> {
+    if (typeof navigator === 'undefined' || !navigator.locks) {
+        await requestNewTokens();
+        return;
+    }
+
+    await navigator.locks.request(AUTH_REFRESH_LOCK, async () => {
+        if (readRefreshMarker() > observedMarker) return;
+        await requestNewTokens();
+    });
+}
 
 function shouldAttemptRefresh(url: string): boolean {
     return !REFRESH_EXCLUDED_ENDPOINTS.some((endpoint) =>
@@ -39,13 +74,8 @@ function shouldAttemptRefresh(url: string): boolean {
 function refreshSession(): Promise<void> {
     if (refreshPromise) return refreshPromise;
 
-    refreshPromise = axios
-        .post(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-            {},
-            { withCredentials: true },
-        )
-        .then(() => undefined)
+    const observedMarker = readRefreshMarker();
+    refreshPromise = refreshAcrossTabs(observedMarker)
         .catch((error: unknown) => {
             notifySessionExpired();
             throw error;

@@ -199,6 +199,7 @@ describe('AuthService session security', () => {
             }),
             data: expect.objectContaining({
                 refreshTokenHash: expect.any(String),
+                expiresAt: expect.any(Date),
                 lastUsedAt: expect.any(Date),
             }),
         });

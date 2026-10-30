@@ -106,10 +106,12 @@ export function GoogleAuthButton({
 
         const top = window.screenY + (window.outerHeight - height) / 2;
 
+        popupRef.current?.close();
+        const authUrl = `${apiUrl}/auth/google`;
         const popup = window.open(
-            `${apiUrl}/auth/google`,
-            'interviewly-google-auth',
-            `width=${width},height=${height},left=${left},top=${top}`,
+            'about:blank',
+            `interviewly-google-auth-${Date.now()}`,
+            `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
         );
 
         if (!popup) {
@@ -119,6 +121,16 @@ export function GoogleAuthButton({
 
         popupRef.current = popup;
         setIsLoading(true);
+
+        try {
+            popup.location.replace(authUrl);
+        } catch {
+            popup.close();
+            popupRef.current = null;
+            setIsLoading(false);
+            toast.error('Không thể chuyển tới trang đăng nhập Google');
+            return;
+        }
 
         popupTimerRef.current = window.setInterval(() => {
             if (popup.closed) {
