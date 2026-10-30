@@ -4,6 +4,7 @@ export interface GenerateStructuredRequest {
     responseJsonSchema: Record<string, unknown>;
     temperature?: number;
     maxOutputTokens?: number;
+    timeoutMs?: number;
 }
 
 export interface GenerateStructuredResult {

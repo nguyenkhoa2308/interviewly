@@ -54,6 +54,27 @@ describe('GeminiProvider', () => {
         });
     });
 
+    it('allows long-running jobs to override the default timeout', async () => {
+        generateContent.mockResolvedValue({ text: '{"ok":true}' } as never);
+
+        await provider.generateStructured({
+            systemInstruction: 'system',
+            prompt: 'prompt',
+            responseJsonSchema: { type: 'object' },
+            timeoutMs: 90_000,
+        });
+
+        expect(generateContent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: expect.objectContaining({
+                    httpOptions: {
+                        timeout: 90_000,
+                        retryOptions: { attempts: 1 },
+                    },
+                }),
+            }),
+        );
+    });
     it('falls back once a retryable model error occurs', async () => {
         generateContent
             .mockRejectedValueOnce(
