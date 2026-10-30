@@ -179,6 +179,33 @@ enum InterviewPlanStatus {
   @@map("interview_plan_status_enum")
 }
 
+enum InterviewEvaluationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("interview_evaluation_status_enum")
+}
+
+enum EvaluationConfidence {
+  HIGH
+  MEDIUM
+  LOW
+
+  @@map("evaluation_confidence_enum")
+}
+
+enum EvaluationLevelAssessment {
+  ABOVE_EXPECTATIONS
+  MEETS_EXPECTATIONS
+  PARTIALLY_MEETS_EXPECTATIONS
+  BELOW_EXPECTATIONS
+  INSUFFICIENT_EVIDENCE
+
+  @@map("evaluation_level_assessment_enum")
+}
+
 model User {
   id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String     @unique @db.VarChar(255)
@@ -565,34 +592,35 @@ model CVJDMatch {
 }
 
 model Interview {
-  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String            @map("user_id") @db.Uuid
-  cvId                  String            @map("cv_id") @db.Uuid
-  cvVersionId           String            @map("cv_version_id") @db.Uuid
-  cvAnalysisId          String            @map("cv_analysis_id") @db.Uuid
-  jobDescriptionId      String            @map("job_description_id") @db.Uuid
-  jdAnalysisId          String            @map("jd_analysis_id") @db.Uuid
-  cvJdMatchId           String?           @map("cv_jd_match_id") @db.Uuid
-  status                InterviewStatus   @default(PLANNING)
-  interviewType         InterviewType     @map("interview_type")
+  id                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String               @map("user_id") @db.Uuid
+  cvId                  String               @map("cv_id") @db.Uuid
+  cvVersionId           String               @map("cv_version_id") @db.Uuid
+  cvAnalysisId          String               @map("cv_analysis_id") @db.Uuid
+  jobDescriptionId      String               @map("job_description_id") @db.Uuid
+  jdAnalysisId          String               @map("jd_analysis_id") @db.Uuid
+  cvJdMatchId           String?              @map("cv_jd_match_id") @db.Uuid
+  status                InterviewStatus      @default(PLANNING)
+  interviewType         InterviewType        @map("interview_type")
   difficulty            Difficulty
-  durationMinutes       Int               @map("duration_minutes")
-  questionCount         Int               @map("question_count")
-  focusAreas            Json              @map("focus_areas")
-  targetRole            String            @map("target_role") @db.VarChar(150)
-  targetLevel           ExperienceLevel?  @map("target_level")
-  sourceContextSnapshot Json              @map("source_context_snapshot")
-  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cv                    CV                @relation(fields: [cvId], references: [id], onDelete: Restrict)
-  cvVersion             CVVersion         @relation(fields: [cvVersionId], references: [id], onDelete: Restrict)
-  cvAnalysis            CVAnalysis        @relation(fields: [cvAnalysisId], references: [id], onDelete: Restrict)
-  jobDescription        JobDescription    @relation(fields: [jobDescriptionId], references: [id], onDelete: Restrict)
-  jdAnalysis            JDAnalysis        @relation(fields: [jdAnalysisId], references: [id], onDelete: Restrict)
-  cvJdMatch             CVJDMatch?        @relation(fields: [cvJdMatchId], references: [id], onDelete: SetNull)
+  durationMinutes       Int                  @map("duration_minutes")
+  questionCount         Int                  @map("question_count")
+  focusAreas            Json                 @map("focus_areas")
+  targetRole            String               @map("target_role") @db.VarChar(150)
+  targetLevel           ExperienceLevel?     @map("target_level")
+  sourceContextSnapshot Json                 @map("source_context_snapshot")
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv                    CV                   @relation(fields: [cvId], references: [id], onDelete: Restrict)
+  cvVersion             CVVersion            @relation(fields: [cvVersionId], references: [id], onDelete: Restrict)
+  cvAnalysis            CVAnalysis           @relation(fields: [cvAnalysisId], references: [id], onDelete: Restrict)
+  jobDescription        JobDescription       @relation(fields: [jobDescriptionId], references: [id], onDelete: Restrict)
+  jdAnalysis            JDAnalysis           @relation(fields: [jdAnalysisId], references: [id], onDelete: Restrict)
+  cvJdMatch             CVJDMatch?           @relation(fields: [cvJdMatchId], references: [id], onDelete: SetNull)
   plans                 InterviewPlan[]
   session               InterviewSession?
+  evaluation            InterviewEvaluation?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, status])
@@ -631,12 +659,49 @@ model InterviewSession {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  interview Interview       @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  plan      InterviewPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
-  turns     InterviewTurn[]
+  interview  Interview            @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  plan       InterviewPlan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  turns      InterviewTurn[]
+  evaluation InterviewEvaluation?
 
   @@index([interviewId, completedAt])
   @@map("interview_sessions")
+}
+
+model InterviewEvaluation {
+  id                         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  interviewId                String                     @unique @map("interview_id") @db.Uuid
+  sessionId                  String                     @unique @map("session_id") @db.Uuid
+  status                     InterviewEvaluationStatus  @default(PENDING)
+  rubricVersion              String                     @default("evaluation-v1") @map("rubric_version") @db.VarChar(50)
+  overallScore               Decimal?                   @map("overall_score") @db.Decimal(4, 2)
+  coverage                   Decimal?                   @db.Decimal(5, 4)
+  confidence                 EvaluationConfidence?
+  levelAssessment            EvaluationLevelAssessment? @map("level_assessment")
+  reportData                 Json?                      @map("report_data")
+  questionReviewStatus       InterviewEvaluationStatus  @default(PENDING) @map("question_review_status")
+  questionReviewData         Json?                      @map("question_review_data")
+  questionReviewErrorCode    String?                    @map("question_review_error_code") @db.VarChar(100)
+  questionReviewErrorMessage String?                    @map("question_review_error_message")
+  questionReviewAttemptCount Int                        @default(0) @map("question_review_attempt_count")
+  questionReviewProcessingAt DateTime?                  @map("question_review_processing_at") @db.Timestamptz(6)
+  questionReviewCompletedAt  DateTime?                  @map("question_review_completed_at") @db.Timestamptz(6)
+  modelProvider              String?                    @map("model_provider") @db.VarChar(100)
+  modelName                  String?                    @map("model_name") @db.VarChar(150)
+  promptVersion              String?                    @map("prompt_version") @db.VarChar(50)
+  errorCode                  String?                    @map("error_code") @db.VarChar(100)
+  errorMessage               String?                    @map("error_message")
+  attemptCount               Int                        @default(0) @map("attempt_count")
+  processingAt               DateTime?                  @map("processing_at") @db.Timestamptz(6)
+  completedAt                DateTime?                  @map("completed_at") @db.Timestamptz(6)
+  createdAt                  DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  interview Interview        @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([status, processingAt])
+  @@map("interview_evaluations")
 }
 
 model InterviewTurn {
