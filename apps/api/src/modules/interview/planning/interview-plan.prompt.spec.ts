@@ -6,8 +6,8 @@ import {
 import { planningContexts } from './interview-plan.test-fixtures';
 
 describe('interview planning prompt', () => {
-    it('uses the v8 role-aware coverage-driven interview strategy contract', () => {
-        expect(INTERVIEW_PLAN_PROMPT_VERSION).toBe('interview-plan-v8');
+    it('uses the v9 role-aware coverage-driven interview strategy contract', () => {
+        expect(INTERVIEW_PLAN_PROMPT_VERSION).toBe('interview-plan-v9');
         expect(INTERVIEW_PLAN_SYSTEM_INSTRUCTION).toContain(
             'coverage objectives',
         );
@@ -37,6 +37,14 @@ describe('interview planning prompt', () => {
         );
     });
 
+    it('requires distinct Frontend fundamentals instead of umbrella coverage', () => {
+        expect(INTERVIEW_PLAN_SYSTEM_INSTRUCTION).toContain(
+            'JavaScript core, HTML/CSS responsive và React core là ba lane độc lập',
+        );
+        expect(INTERVIEW_PLAN_SYSTEM_INSTRUCTION).toContain(
+            'Hỏi React/useEffect không thay thế câu JavaScript',
+        );
+    });
     it('keeps CV/JD as topic evidence instead of forcing unnatural wording', () => {
         expect(INTERVIEW_PLAN_SYSTEM_INSTRUCTION).toContain(
             'CV/JD quyết định WHAT/priority; target level quyết định HOW',

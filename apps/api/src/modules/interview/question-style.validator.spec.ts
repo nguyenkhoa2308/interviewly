@@ -1,4 +1,7 @@
-﻿import { findQuestionStyleIssues } from './question-style.validator';
+import {
+    findQuestionStyleIssues,
+    simplifyCompoundQuestion,
+} from './question-style.validator';
 
 describe('generated interview question style', () => {
     it('accepts short, spoken, single-intent Junior fundamentals', () => {
@@ -32,6 +35,13 @@ describe('generated interview question style', () => {
         ).toContain('COMPOUND_QUESTION');
     });
 
+    it('keeps the first intent when deterministically simplifying a repeated compound question', () => {
+        expect(
+            simplifyCompoundQuestion(
+                'Bạn xử lý side effect như thế nào và khi nào cần dùng dependency array?',
+            ),
+        ).toBe('Bạn xử lý side effect như thế nào?');
+    });
     it('rejects a verbose written-style Junior introduction', () => {
         const issues = findQuestionStyleIssues({
             questionText:

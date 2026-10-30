@@ -4,6 +4,10 @@ import { AiException } from '../../ai/ai.errors';
 import type { AiProvider } from '../../ai/ai-provider.types';
 import { AI_PROVIDER } from '../../ai/ai.tokens';
 import {
+    findQuestionStyleIssues,
+    simplifyCompoundQuestion,
+} from '../question-style.validator';
+import {
     assertConfiguredQuestionCount,
     getQuestionPoolRange,
     validateInterviewPlanContract,
@@ -21,6 +25,8 @@ import {
     type InterviewPlanResult,
 } from './interview-plan.schema';
 
+import { getRequiredRoleBaselines } from './role-baseline.catalog';
+
 const contextContract = z
     .object({
         configuration: z
@@ -29,6 +35,7 @@ const contextContract = z
                 durationMinutes: z.number().int(),
                 questionCount: z.number().int(),
                 targetLevel: z.string().optional(),
+                targetRole: z.string().optional(),
             })
             .passthrough(),
         cv: z
@@ -75,7 +82,14 @@ export class InterviewPlannerService {
         const { configuration } = trusted.data;
         assertConfiguredQuestionCount(configuration.questionCount);
 
-        const prompt = buildInterviewPlanPrompt(context);
+        const requiredRoleBaselines = getRequiredRoleBaselines(
+            configuration.targetRole,
+            configuration.interviewType,
+        );
+        const prompt = buildInterviewPlanPrompt({
+            ...(context as Record<string, unknown>),
+            requiredRoleBaselines,
+        });
         if (prompt.length > INTERVIEW_PLAN_MAX_INPUT_CHARS)
             throw new AiException('AI_INVALID_INPUT');
 
@@ -158,8 +172,12 @@ export class InterviewPlannerService {
             }
 
             try {
+                const candidate =
+                    attempt === maximumAttempts
+                        ? repairRepeatedCompoundQuestions(parsed.data)
+                        : parsed.data;
                 const result = validateInterviewPlanContract(
-                    parsed.data,
+                    candidate,
                     {
                         ...configuration,
                         experienceLevel: getExperienceLevel(trusted.data),
@@ -169,6 +187,7 @@ export class InterviewPlannerService {
                         hasCvEvidence: hasAnalysisEvidence(
                             trusted.data.cv.analysis,
                         ),
+                        requiredRoleBaselines,
                         requiredTechnicalSkills: [
                             ...(trusted.data.technicalSkillCoverage
                                 ?.matchedRequiredSkills ?? []),
@@ -245,6 +264,26 @@ export class InterviewPlannerService {
     }
 }
 
+function repairRepeatedCompoundQuestions(
+    plan: InterviewPlanResult,
+): InterviewPlanResult {
+    const repaired = structuredClone(plan);
+    for (const section of repaired.sections) {
+        for (const question of section.questions) {
+            const issues = findQuestionStyleIssues({
+                questionText: question.suggestedQuestion,
+                primaryIntent: question.primaryIntent,
+                questionType: question.type,
+            });
+            if (issues.includes('COMPOUND_QUESTION')) {
+                question.suggestedQuestion = simplifyCompoundQuestion(
+                    question.suggestedQuestion,
+                );
+            }
+        }
+    }
+    return repaired;
+}
 function repairPlanRelations(plan: InterviewPlanResult): InterviewPlanResult {
     if (!plan.roleBaseline || !plan.competencyMap) return plan;
 
@@ -278,6 +317,14 @@ function repairPlanRelations(plan: InterviewPlanResult): InterviewPlanResult {
         });
     }
 
+    const closing = repaired.sections.at(-1);
+    if (closing?.type === 'CANDIDATE_QUESTIONS') {
+        const candidateQuestion = closing.questions[0];
+        candidateQuestion.type = 'CANDIDATE';
+        candidateQuestion.difficulty = null;
+        candidateQuestion.competencyKey = undefined;
+        closing.questions = [candidateQuestion];
+    }
     const assignmentCounts = new Map<string, number>();
     for (const section of repaired.sections) {
         for (const question of section.questions) {
@@ -312,6 +359,14 @@ function repairPlanRelations(plan: InterviewPlanResult): InterviewPlanResult {
                     (assignmentCounts.get(selected.key) ?? 0) + 1,
                 );
             }
+        }
+    }
+
+    let order = 1;
+    for (const section of repaired.sections) {
+        for (const question of section.questions) {
+            question.order = order;
+            order += 1;
         }
     }
 
@@ -439,7 +494,7 @@ function buildExpansionCorrection(
     return `\n\nEXPAND THIS VALID INTERVIEW PLAN INSTEAD OF STARTING OVER:
 - Preserve all valid sections, durations, roleBaseline, competencyMap and existing questions.
 - Expand the pool from ${countPlanQuestions(plan)} to ${poolRange.minimum}-${poolRange.maximum} distinct coverage options. Never return fewer than ${poolRange.minimum} unless the schema maximum makes that impossible.
-- For the first four prioritized matched skills, include at least two TECHNICAL questions with different primaryIntent/probe angles per skill. Supporting matched skills need at least one focused question.
+- Include at least one focused TECHNICAL question for every prioritized matched skill. Runtime follow-ups provide adaptive depth.
 - Do not use paraphrases to fake depth and do not merge independent skills into one compound question.
 - Keep global question order continuous from 1.
 - Return the complete expanded JSON object only.
@@ -455,7 +510,7 @@ function buildCorrection(
     const diagnostic = diagnostics.join(' | ');
     const poolRange = getQuestionPoolRange(configuration);
     return `\n\nREGENERATE THE PREVIOUS PLAN:\n- Validation error: ${diagnostic}.\n- Repair the supplied latest draft. Preserve every field and coverage item that already satisfies the contract; do not regress an earlier fix.
-- Resolve ALL accumulated validation errors in this retry, not only the last item.\n- ${configuration.questionCount} is the runtime target, not the generated pool size. Target ${poolRange.minimum} to ${poolRange.maximum} coverage options, but never return fewer than ${configuration.questionCount}; use continuous order values starting at 1.\n- For a 60-minute TECHNICAL/FULL interview, create 8-12 TECHNICAL, 4-6 PROJECT, 3-4 BEHAVIORAL, one INTRODUCTION and one CANDIDATE option.\n- Section durationMinutes must total exactly ${configuration.durationMinutes}.\n- roleBaseline and competencyMap are mandatory. TECHNICAL, PROJECT and BEHAVIORAL questions must have a valid competencyKey and primaryIntent. GENERAL introduction and CANDIDATE closing questions do not require competencyKey.\n- Every roleBaseline key must appear unchanged in competencyMap and that competency must include ROLE_BASELINE in sources.\n- Include every required field. Use null for nullable fields instead of omitting them.\n- Each question must ask one main idea. Keep INTERN/FRESHER/JUNIOR wording natural and concise.\n- For QUESTION_STYLE errors, simplify the exact invalid question instead of merely replacing words.\n- For REGENERATION_TOO_SIMILAR, replace at least 50% of assessment primaryIntent values with genuinely different evidence goals. Rotate secondary competencies, probe areas and project angles; synonyms do not count as new intent.\n- For MATCHED_SKILL_COVERAGE, fix every MISSING skill and every DEPTH skill reported in the diagnostic in the same retry. Add focused TECHNICAL questions; DEPTH needs a genuinely different primaryIntent/probe angle, not a paraphrase.\n- For INSUFFICIENT_TECHNICAL_POOL, expand the TECHNICAL coverage pool; do not merge independent skills into compound questions.\n<latest_draft_to_repair>\n${JSON.stringify(latestDraft)}\n</latest_draft_to_repair>\n`;
+- Resolve ALL accumulated validation errors in this retry, not only the last item.\n- ${configuration.questionCount} is the runtime target, not the generated pool size. Target ${poolRange.minimum} to ${poolRange.maximum} coverage options, but never return fewer than ${configuration.questionCount}; use continuous order values starting at 1.\n- For a 60-minute TECHNICAL/FULL interview, create 8-12 TECHNICAL, 4-6 PROJECT, 3-4 BEHAVIORAL, one INTRODUCTION and one CANDIDATE option.\n- Section durationMinutes must total exactly ${configuration.durationMinutes}.\n- roleBaseline and competencyMap are mandatory. TECHNICAL, PROJECT and BEHAVIORAL questions must have a valid competencyKey and primaryIntent. GENERAL introduction and CANDIDATE closing questions do not require competencyKey.\n- Every roleBaseline key must appear unchanged in competencyMap and that competency must include ROLE_BASELINE in sources.\n- Include every required field. Use null for nullable fields instead of omitting them.\n- Each question must ask one main idea. Keep INTERN/FRESHER/JUNIOR wording natural and concise.\n- For QUESTION_STYLE errors, simplify the exact invalid question instead of merely replacing words.\n- For REGENERATION_TOO_SIMILAR, replace at least 50% of assessment primaryIntent values with genuinely different evidence goals. Rotate secondary competencies, probe areas and project angles; synonyms do not count as new intent.\n- For MISSING_REQUIRED_ROLE_BASELINE, add the named mandatory role competency to roleBaseline and competencyMap with priority KEY and source ROLE_BASELINE. For MISSING_REQUIRED_ROLE_COVERAGE, add a focused TECHNICAL question that actually assesses that competency; an umbrella label or a question about another related technology does not count.\n- For MATCHED_SKILL_COVERAGE, add one focused TECHNICAL coverage question for every MISSING skill reported in the diagnostic. Do not merge independent skills into one compound question; runtime follow-ups provide adaptive depth.\n- For INSUFFICIENT_TECHNICAL_POOL, expand the TECHNICAL coverage pool; do not merge independent skills into compound questions.\n<latest_draft_to_repair>\n${JSON.stringify(latestDraft)}\n</latest_draft_to_repair>\n`;
 }
 function validateRegenerationDiversity(
     plan: ReturnType<typeof validateInterviewPlanContract>,

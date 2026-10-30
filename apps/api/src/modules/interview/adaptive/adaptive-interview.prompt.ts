@@ -29,6 +29,7 @@ CHỌN CÂU TIẾP:
 COMPETENCY MAP AND BREADTH:
 - competencyMap is the backbone; suggested questions are wording options. Prioritize uncovered KEY/HIGH competencies instead of blindly following order.
 - When an answer already supplies sufficient evidence for another planned objective, return its key in coveredPlannedQuestionKeys so redundant questions can be skipped.
+- Do not mark a mandatory ROLE_BASELINE competency as covered indirectly merely because the answer mentions a neighboring skill. For INTERN/FRESHER/JUNIOR, ask one focused baseline question for each required lane before treating it as covered; e.g. React/TypeScript evidence does not replace JavaScript core, and a UI framework does not replace HTML/CSS responsive.
 - STRONG does not require endless depth: move aspect or competency when evidence is sufficient. ADEQUATE normally gets at most one targeted verification. SHALLOW/WEAK gets one useful recovery/rephrase, then move on rather than punish repeatedly.
 - When topicSaturated=true, move to an important uncovered competency.
 - Adapt to the actual role and interviewType, including non-technical professions; never force coding or software vocabulary onto unrelated roles.

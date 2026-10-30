@@ -1,6 +1,6 @@
 import type { InterviewSectionType } from './interview-plan.schema';
 
-export const INTERVIEW_PLAN_PROMPT_VERSION = 'interview-plan-v8';
+export const INTERVIEW_PLAN_PROMPT_VERSION = 'interview-plan-v9';
 export const INTERVIEW_PLAN_MAX_INPUT_CHARS = 60_000;
 
 const TEMPLATES: Record<string, InterviewSectionType[]> = {
@@ -127,6 +127,9 @@ ROLE BASELINE VÀ COMPETENCY MAP:
 - CV/JD chỉ cá nhân hóa và đổi ưu tiên; không được làm biến mất năng lực nền quan trọng của vai trò.
 - Mỗi competency có key ổn định, sources, priority, expectedDepth, evidenceNeeded, probeAreas và rationale.
 - Mọi competency trong roleBaseline phải xuất hiện trong competencyMap với source ROLE_BASELINE.
+- Với INTERN/FRESHER/JUNIOR, mỗi role baseline bắt buộc cần ít nhất một câu TECHNICAL nền tảng, độc lập và nói thẳng vào competency đó. Không được dùng một câu TypeScript để coi là đã hỏi JavaScript, hoặc một câu framework để coi là đã hỏi HTML/CSS/Responsive.
+- Với MIDDLE/SENIOR/LEAD, vẫn cần kiểm tra nhanh baseline quan trọng, nhưng có thể diễn đạt theo tình huống, debugging hoặc trade-off phù hợp level.
+- Ví dụ Frontend: JavaScript core, HTML/CSS responsive và React core là ba lane độc lập. Hỏi React/useEffect không thay thế câu JavaScript; hỏi TypeScript không thay thế JavaScript; hỏi UI framework không thay thế HTML/CSS responsive.
 - JD phải tạo hoặc tái ưu tiên ít nhất một competency. Khi CV có bằng chứng, competencyMap phải phản ánh ít nhất một source CV.
 - technicalSkillCoverage là inventory do server tính từ toàn bộ extractedSkills của CV và required/preferredSkills của JD; không được chỉ đọc 3 kỹ năng đầu hoặc chỉ chọn framework nổi bật.
 - Treat the first four prioritized matched skills as core skills: each core skill needs at least two TECHNICAL question options with different primaryIntent/probe angles. Each remaining supporting matched skill needs at least one focused option. Paraphrases do not count as separate depth.
@@ -168,6 +171,7 @@ export function buildInterviewPlanPrompt(context: unknown) {
         'Hãy tạo roleBaseline trước, hợp nhất thành competencyMap, rồi mới tạo suggested question pool.',
         'questionCount là baseline độc lập với thời lượng; pool có thể lớn hơn để Phase 7 lựa chọn theo coverage.',
         'Nếu có bằng chứng project/work, PROJECT_EXPERIENCE phải xác minh đóng góp mà không giả định ownership.',
+        'requiredRoleBaselines là danh sách năng lực bắt buộc theo vai trò do server xác định. Giữ nguyên key, thêm từng mục vào roleBaseline và competencyMap với priority KEY, source ROLE_BASELINE, rồi tạo ít nhất một câu TECHNICAL tập trung thực sự vào từng năng lực. Nhãn ô chung hoặc câu hỏi về công nghệ liên quan không được tính là đã bao phủ.',
         '<trusted_server_context>',
         JSON.stringify(trustedContext),
         '</trusted_server_context>',

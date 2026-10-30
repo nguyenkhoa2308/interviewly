@@ -1,10 +1,11 @@
-import { AiException } from '../../ai/ai.errors';
+﻿import { AiException } from '../../ai/ai.errors';
 import {
     assertConfiguredQuestionCount,
     getQuestionPoolRange,
     validateInterviewPlanContract,
 } from './interview-plan.contract';
 import { makeValidTechnicalPlan } from './interview-plan.test-fixtures';
+import { getRequiredRoleBaselines } from './role-baseline.catalog';
 describe('interview plan product contract', () => {
     it('accepts controlled technical order and coherent timing', () =>
         expect(
@@ -110,13 +111,13 @@ describe('interview plan product contract', () => {
         const plan = makeValidTechnicalPlan();
         plan.competencyMap!.push({
             key: 'missing-key',
-            name: 'Năng lực quan trọng bị thiếu',
+            name: 'NÄƒng lá»±c quan trá»ng bá»‹ thiáº¿u',
             sources: ['JD'],
             priority: 'KEY',
             expectedDepth: 'APPLICATION',
-            evidenceNeeded: ['Bằng chứng áp dụng thực tế.'],
+            evidenceNeeded: ['Báº±ng chá»©ng Ã¡p dá»¥ng thá»±c táº¿.'],
             probeAreas: [],
-            rationale: 'JD coi đây là yêu cầu bắt buộc.',
+            rationale: 'JD coi Ä‘Ã¢y lÃ  yÃªu cáº§u báº¯t buá»™c.',
         });
         expect(() =>
             validateInterviewPlanContract(
@@ -168,49 +169,49 @@ describe('interview plan product contract', () => {
         plan.roleBaseline = [
             {
                 key: 'customer-discovery',
-                name: 'Khám phá nhu cầu',
-                description: 'Hiểu nhu cầu khách hàng.',
+                name: 'KhÃ¡m phÃ¡ nhu cáº§u',
+                description: 'Hiá»ƒu nhu cáº§u khÃ¡ch hÃ ng.',
                 expectedDepth: 'APPLICATION',
-                rationale: 'Nền tảng của Sales.',
+                rationale: 'Ná»n táº£ng cá»§a Sales.',
             },
             {
                 key: 'communication',
-                name: 'Giao tiếp',
-                description: 'Truyền đạt rõ ràng.',
+                name: 'Giao tiáº¿p',
+                description: 'Truyá»n Ä‘áº¡t rÃµ rÃ ng.',
                 expectedDepth: 'REAL_EXPERIENCE',
-                rationale: 'Cần cho Sales.',
+                rationale: 'Cáº§n cho Sales.',
             },
         ];
         plan.competencyMap = [
             {
                 key: 'customer-discovery',
-                name: 'Khám phá nhu cầu',
+                name: 'KhÃ¡m phÃ¡ nhu cáº§u',
                 sources: ['ROLE_BASELINE', 'JD'],
                 priority: 'KEY',
                 expectedDepth: 'APPLICATION',
-                evidenceNeeded: ['Cách xác định nhu cầu.'],
+                evidenceNeeded: ['CÃ¡ch xÃ¡c Ä‘á»‹nh nhu cáº§u.'],
                 probeAreas: ['discovery'],
-                rationale: 'Năng lực chính.',
+                rationale: 'NÄƒng lá»±c chÃ­nh.',
             },
             {
                 key: 'deal-execution',
-                name: 'Thực thi cơ hội',
+                name: 'Thá»±c thi cÆ¡ há»™i',
                 sources: ['CV', 'JD'],
                 priority: 'KEY',
                 expectedDepth: 'REAL_EXPERIENCE',
-                evidenceNeeded: ['Đóng góp trong một cơ hội thực tế.'],
+                evidenceNeeded: ['ÄÃ³ng gÃ³p trong má»™t cÆ¡ há»™i thá»±c táº¿.'],
                 probeAreas: ['ownership'],
-                rationale: 'Cá nhân hóa từ CV.',
+                rationale: 'CÃ¡ nhÃ¢n hÃ³a tá»« CV.',
             },
             {
                 key: 'communication',
-                name: 'Giao tiếp',
+                name: 'Giao tiáº¿p',
                 sources: ['ROLE_BASELINE', 'JD'],
                 priority: 'HIGH',
                 expectedDepth: 'REAL_EXPERIENCE',
-                evidenceNeeded: ['Giao tiếp với khách hàng.'],
+                evidenceNeeded: ['Giao tiáº¿p vá»›i khÃ¡ch hÃ ng.'],
                 probeAreas: ['objection'],
-                rationale: 'Yêu cầu công việc.',
+                rationale: 'YÃªu cáº§u cÃ´ng viá»‡c.',
             },
         ];
         for (const section of plan.sections) {
@@ -238,7 +239,7 @@ describe('interview plan product contract', () => {
             ),
         ).not.toThrow();
     });
-    it('requires two distinct question angles for a prioritized matched skill', () => {
+    it('accepts one planned coverage question per matched skill because runtime follow-ups provide depth', () => {
         const plan = makeValidTechnicalPlan();
         expect(() =>
             validateInterviewPlanContract(
@@ -254,7 +255,7 @@ describe('interview plan product contract', () => {
                     requiredTechnicalSkills: ['ReactJS'],
                 },
             ),
-        ).toThrow(AiException);
+        ).not.toThrow();
     });
     it('rejects a technical plan that drops a matched CV/JD skill', () => {
         const plan = makeValidTechnicalPlan();
@@ -288,6 +289,160 @@ describe('interview plan product contract', () => {
                     questionCount: 14,
                 },
                 { hasProjectEvidence: true },
+            ),
+        ).toThrow(AiException);
+    });
+    it('rejects a Frontend plan that never asks its required foundations', () => {
+        const plan = makeValidTechnicalPlan();
+        expect(() =>
+            validateInterviewPlanContract(
+                plan,
+                {
+                    interviewType: 'TECHNICAL',
+                    durationMinutes: 30,
+                    questionCount: 8,
+                },
+                {
+                    hasProjectEvidence: true,
+                    requiredRoleBaselines: getRequiredRoleBaselines(
+                        'Frontend Developer',
+                        'TECHNICAL',
+                    ),
+                },
+            ),
+        ).toThrow(AiException);
+    });
+
+    it('accepts focused JavaScript, responsive and React questions for a Frontend plan', () => {
+        const plan = makeValidTechnicalPlan();
+        const roleFoundations = plan.competencyMap!.find(
+            (item) => item.key === 'role-foundations',
+        )!;
+        roleFoundations.priority = 'HIGH';
+        plan.roleBaseline!.push(
+            {
+                key: 'javascript-core',
+                name: 'JavaScript Core',
+                description: 'Ná»n táº£ng JavaScript báº¯t buá»™c cho Frontend.',
+                expectedDepth: 'APPLICATION',
+                rationale:
+                    'Frontend cáº§n hiá»ƒu JavaScript Ä‘á»™c láº­p vá»›i framework.',
+            },
+            {
+                key: 'html-css-responsive',
+                name: 'HTML, CSS vÃ  Responsive Design',
+                description: 'Ná»n táº£ng giao diá»‡n responsive.',
+                expectedDepth: 'APPLICATION',
+                rationale: 'Frontend cáº§n xÃ¢y dá»±ng giao diá»‡n Ä‘a thiáº¿t bá»‹.',
+            },
+            {
+                key: 'react-core',
+                name: 'React Core',
+                description: 'React fundamentals for Frontend work.',
+                expectedDepth: 'APPLICATION',
+                rationale: 'Frontend needs component and state fundamentals.',
+            },
+        );
+        plan.competencyMap!.push(
+            {
+                key: 'javascript-core',
+                name: 'JavaScript Core',
+                sources: ['ROLE_BASELINE'],
+                priority: 'KEY',
+                expectedDepth: 'APPLICATION',
+                evidenceNeeded: [
+                    'Giáº£i thÃ­ch closure hoáº·c event loop trong JavaScript.',
+                ],
+                probeAreas: ['JavaScript', 'closure', 'event loop'],
+                rationale: 'NÄƒng lá»±c ná»n báº¯t buá»™c cá»§a Frontend.',
+            },
+            {
+                key: 'html-css-responsive',
+                name: 'HTML, CSS vÃ  Responsive Design',
+                sources: ['ROLE_BASELINE'],
+                priority: 'KEY',
+                expectedDepth: 'APPLICATION',
+                evidenceNeeded: ['Giáº£i thÃ­ch cÃ¡ch dÃ¹ng media query.'],
+                probeAreas: ['HTML', 'CSS', 'responsive', 'media query'],
+                rationale: 'NÄƒng lá»±c ná»n báº¯t buá»™c cá»§a Frontend.',
+            },
+            {
+                key: 'react-core',
+                name: 'React Core',
+                sources: ['ROLE_BASELINE'],
+                priority: 'KEY',
+                expectedDepth: 'APPLICATION',
+                evidenceNeeded: ['Explain when a React component re-renders.'],
+                probeAreas: ['React', 'component', 'state', 'render'],
+                rationale: 'Core React capability.',
+            },
+        );
+        Object.assign(plan.sections[1].questions[0], {
+            competencyKey: 'javascript-core',
+            topic: 'JavaScript',
+            primaryIntent: 'Kiá»ƒm tra hiá»ƒu biáº¿t vá» closure trong JavaScript',
+            suggestedQuestion: 'Closure trong JavaScript lÃ  gÃ¬?',
+            objective: 'ÄÃ¡nh giÃ¡ ná»n táº£ng JavaScript.',
+            probeAreas: ['closure'],
+        });
+        Object.assign(plan.sections[1].questions[1], {
+            competencyKey: 'html-css-responsive',
+            topic: 'Responsive CSS',
+            primaryIntent: 'Kiá»ƒm tra cÃ¡ch xÃ¢y dá»±ng giao diá»‡n responsive',
+            suggestedQuestion: 'Media query trong CSS cÃ³ tÃ¡c dá»¥ng gÃ¬?',
+            objective: 'ÄÃ¡nh giÃ¡ ná»n táº£ng responsive.',
+            probeAreas: ['media query'],
+        });
+        Object.assign(plan.sections[1].questions[2], {
+            competencyKey: 'react-core',
+            topic: 'React component',
+            primaryIntent: 'Check when a React component re-renders',
+            suggestedQuestion: 'When does a React component re-render?',
+            objective: 'Assess React fundamentals.',
+            probeAreas: ['state', 'render'],
+        });
+
+        expect(() =>
+            validateInterviewPlanContract(
+                plan,
+                {
+                    interviewType: 'TECHNICAL',
+                    durationMinutes: 30,
+                    questionCount: 8,
+                },
+                {
+                    hasProjectEvidence: true,
+                    requiredRoleBaselines: getRequiredRoleBaselines(
+                        'Frontend Developer',
+                        'TECHNICAL',
+                    ),
+                },
+            ),
+        ).not.toThrow();
+
+        const falseJavaScriptCoverage = structuredClone(plan);
+        Object.assign(falseJavaScriptCoverage.sections[1].questions[0], {
+            topic: 'JavaScript & TypeScript',
+            primaryIntent: 'Compare interface and type in TypeScript',
+            suggestedQuestion: 'interface vÃ  type khÃ¡c nhau nhÆ° tháº¿ nÃ o?',
+            objective: 'Assess TypeScript type modelling.',
+            probeAreas: ['interface', 'type'],
+        });
+        expect(() =>
+            validateInterviewPlanContract(
+                falseJavaScriptCoverage,
+                {
+                    interviewType: 'TECHNICAL',
+                    durationMinutes: 30,
+                    questionCount: 8,
+                },
+                {
+                    hasProjectEvidence: true,
+                    requiredRoleBaselines: getRequiredRoleBaselines(
+                        'Frontend Developer',
+                        'TECHNICAL',
+                    ),
+                },
             ),
         ).toThrow(AiException);
     });

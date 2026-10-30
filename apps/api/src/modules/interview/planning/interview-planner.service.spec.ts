@@ -72,6 +72,116 @@ describe('InterviewPlannerService', () => {
             'QUESTION_STYLE:2:COMPOUND_QUESTION',
         );
     });
+    it('uses a deterministic single-intent repair when the provider repeats the same compound question', async () => {
+        const invalidPlan = makeValidTechnicalPlan();
+        invalidPlan.sections[1].questions[0] = {
+            ...invalidPlan.sections[1].questions[0],
+            suggestedQuestion:
+                'Bạn xử lý side effect như thế nào và khi nào cần dùng dependency array?',
+        };
+        const generateStructured = jest
+            .fn<AiProvider['generateStructured']>()
+            .mockResolvedValue({
+                data: invalidPlan,
+                modelName: 'test-model',
+            });
+        const provider = {
+            providerName: 'TEST',
+            modelName: 'test-model',
+            generateStructured,
+        } satisfies AiProvider;
+
+        const output = await new InterviewPlannerService(provider).generate(
+            planningContexts.juniorWithWork,
+        );
+
+        expect(generateStructured).toHaveBeenCalledTimes(3);
+        expect(output.result.sections[1].questions[0].suggestedQuestion).toBe(
+            'Bạn xử lý side effect như thế nào?',
+        );
+    });
+    it('normalizes the candidate closing section without spending an AI retry', async () => {
+        const plan = makeValidTechnicalPlan();
+        const closing = plan.sections.at(-1)!;
+        closing.questions[0].type = 'GENERAL';
+        closing.questions[0].difficulty = 'EASY';
+        closing.questions.push({
+            ...structuredClone(closing.questions[0]),
+            order: 9,
+        });
+        const generateStructured = jest
+            .fn<AiProvider['generateStructured']>()
+            .mockResolvedValue({ data: plan, modelName: 'test-model' });
+        const provider = {
+            providerName: 'TEST',
+            modelName: 'test-model',
+            generateStructured,
+        } satisfies AiProvider;
+
+        const output = await new InterviewPlannerService(provider).generate(
+            planningContexts.juniorWithWork,
+        );
+        const repairedClosing = output.result.sections.at(-1)!;
+
+        expect(generateStructured).toHaveBeenCalledTimes(1);
+        expect(repairedClosing.questions).toHaveLength(1);
+        expect(repairedClosing.questions[0]).toMatchObject({
+            type: 'CANDIDATE',
+            difficulty: null,
+            order: 8,
+        });
+    });
+    it('returns a valid near-target fallback when later expansion attempts regress', async () => {
+        const nearTargetPlan = makeValidTechnicalPlan();
+        nearTargetPlan.sections.forEach((section) => {
+            section.durationMinutes *= 2;
+        });
+        const technical = nearTargetPlan.sections[1];
+        const seed = structuredClone(technical.questions[0]);
+        for (let index = 0; index < 5; index += 1) {
+            technical.questions.push({
+                ...structuredClone(seed),
+                order: 9 + index,
+                competencyKey:
+                    index % 2 === 0 ? 'data-flow' : 'role-foundations',
+                primaryIntent: `Additional technical evidence ${index + 1}`,
+                suggestedQuestion: `Câu hỏi kỹ thuật bổ sung số ${index + 1}?`,
+            });
+        }
+        const invalidDraft = { summary: 'invalid retry' };
+        const generateStructured = jest
+            .fn<AiProvider['generateStructured']>()
+            .mockResolvedValueOnce({
+                data: nearTargetPlan,
+                modelName: 'test-model',
+            })
+            .mockResolvedValue({
+                data: invalidDraft,
+                modelName: 'test-model',
+            });
+        const provider = {
+            providerName: 'TEST',
+            modelName: 'test-model',
+            generateStructured,
+        } satisfies AiProvider;
+        const context = {
+            ...planningContexts.juniorWithWork,
+            configuration: {
+                ...planningContexts.juniorWithWork.configuration,
+                durationMinutes: 60,
+                questionCount: 14,
+            },
+        };
+
+        const output = await new InterviewPlannerService(provider).generate(
+            context,
+        );
+
+        expect(generateStructured).toHaveBeenCalledTimes(3);
+        expect(
+            output.result.sections.flatMap((section) => section.questions),
+        ).toHaveLength(13);
+    });
     it('retries a regenerated plan when assessment intents are too similar', async () => {
         const original = makeValidTechnicalPlan();
         const varied = structuredClone(original);

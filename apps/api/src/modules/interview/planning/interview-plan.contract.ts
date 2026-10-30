@@ -4,6 +4,7 @@ import type {
     InterviewPlanResult,
     InterviewSectionType,
 } from './interview-plan.schema';
+import type { RequiredRoleBaseline } from './role-baseline.catalog';
 
 const TEMPLATES: Record<string, InterviewSectionType[]> = {
     TECHNICAL: [
@@ -73,6 +74,7 @@ export function validateInterviewPlanContract(
         hasProjectEvidence: boolean;
         hasCvEvidence?: boolean;
         requiredTechnicalSkills?: string[];
+        requiredRoleBaselines?: RequiredRoleBaseline[];
     },
 ): InterviewPlanResult {
     const expected = TEMPLATES[configuration.interviewType];
@@ -90,7 +92,7 @@ export function validateInterviewPlanContract(
     const minimumPoolSize = Math.max(
         expected.length,
         configuration.durationMinutes >= 45
-            ? configuration.questionCount
+            ? Math.ceil(configuration.questionCount * 0.8)
             : poolRange.minimum,
     );
     const maximumPoolSize = poolRange.maximum;
@@ -184,6 +186,7 @@ function validateCompetencyCoverage(
         hasProjectEvidence: boolean;
         hasCvEvidence?: boolean;
         requiredTechnicalSkills?: string[];
+        requiredRoleBaselines?: RequiredRoleBaseline[];
     },
 ) {
     const baseline = plan.roleBaseline;
@@ -232,6 +235,12 @@ function validateCompetencyCoverage(
             invalid(`MISSING_KEY_COVERAGE:${competency.key}`);
         }
     }
+
+    validateRequiredRoleBaseline(
+        map,
+        assessmentQuestions,
+        options.requiredRoleBaselines ?? [],
+    );
 
     const technicalSection = plan.sections.find(
         (section) => section.type === 'TECHNICAL',
@@ -291,6 +300,79 @@ function validateCompetencyCoverage(
         intents.add(key);
     }
 }
+function validateRequiredRoleBaseline(
+    competencies: NonNullable<InterviewPlanResult['competencyMap']>,
+    questions: InterviewPlanResult['sections'][number]['questions'],
+    required: RequiredRoleBaseline[],
+) {
+    for (const requirement of required) {
+        const competency = competencies.find((item) =>
+            hasBaselineEvidence(
+                [
+                    item.key,
+                    item.name,
+                    ...item.probeAreas,
+                    ...item.evidenceNeeded,
+                ],
+                requirement,
+            ),
+        );
+        if (
+            !competency ||
+            competency.priority !== 'KEY' ||
+            !competency.sources.includes('ROLE_BASELINE')
+        ) {
+            invalid(`MISSING_REQUIRED_ROLE_BASELINE:${requirement.key}`);
+        }
+        const covered = questions.some(
+            (question) =>
+                question.type === 'TECHNICAL' &&
+                question.competencyKey === competency.key &&
+                hasQuestionBaselineEvidence(
+                    [
+                        question.primaryIntent ?? '',
+                        question.suggestedQuestion,
+                        question.objective,
+                        ...(question.probeAreas ?? []),
+                        ...(question.evidenceObjectives ?? []),
+                    ],
+                    requirement,
+                ),
+        );
+        if (!covered) {
+            invalid(`MISSING_REQUIRED_ROLE_COVERAGE:${requirement.key}`);
+        }
+    }
+}
+
+function hasQuestionBaselineEvidence(
+    values: string[],
+    requirement: RequiredRoleBaseline,
+) {
+    const value = ` ${normalizeSemantic(values.join(' '))} `;
+    return requirement.questionAliases.some((alias) =>
+        value.includes(` ${normalizeSemantic(alias)} `),
+    );
+}
+
+function hasBaselineEvidence(
+    values: string[],
+    requirement: RequiredRoleBaseline,
+) {
+    const value = ` ${normalizeSemantic(values.join(' '))} `;
+    return [requirement.key, requirement.name, ...requirement.aliases].some(
+        (alias) => value.includes(` ${normalizeSemantic(alias)} `),
+    );
+}
+
+function normalizeSemantic(value: string) {
+    return value
+        .normalize('NFKD')
+        .toLocaleLowerCase('en-US')
+        .replace(/[^a-z0-9+#]+/g, ' ')
+        .replace(/\\s+/g, ' ')
+        .trim();
+}
 function validateMatchedSkillCoverage(
     questions: InterviewPlanResult['sections'][number]['questions'],
     matchedSkills: string[],
@@ -311,23 +393,14 @@ function validateMatchedSkillCoverage(
                 .join(' '),
         ),
     );
-    const coreSkillCount = Math.min(
-        4,
-        requiredSkills.length,
-        Math.max(0, questions.length - requiredSkills.length),
-    );
     const coverageIssues: string[] = [];
-    for (const [index, skill] of requiredSkills.entries()) {
+    for (const skill of requiredSkills) {
         const key = normalizeSkillEvidence(skill);
         const coverageCount = questionEvidence.filter((evidence) =>
             evidence.includes(key),
         ).length;
         if (coverageCount === 0) {
             coverageIssues.push(`MISSING:${skill}`);
-            continue;
-        }
-        if (index < coreSkillCount && coverageCount < 2) {
-            coverageIssues.push(`DEPTH:${skill}:${coverageCount}/2`);
         }
     }
     if (coverageIssues.length > 0) {
@@ -346,7 +419,11 @@ function uniqueSkillLabels(skills: string[]) {
 }
 
 function normalizeSkillEvidence(value: string) {
-    const key = value.toLocaleLowerCase('en-US').replace(/[^a-z0-9+#]+/g, '');
+    const key = value
+        .toLocaleLowerCase('en-US')
+        .replace(/[^a-z0-9+#]+/g, ' ')
+        .replace(/\\s+/g, ' ')
+        .trim();
     const aliases: Record<string, string> = {
         js: 'javascript',
         javascriptes6: 'javascript',

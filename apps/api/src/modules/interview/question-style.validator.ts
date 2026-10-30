@@ -1,4 +1,4 @@
-﻿export type InterviewExperienceLevel =
+export type InterviewExperienceLevel =
     'INTERN' | 'FRESHER' | 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'LEAD';
 
 export type QuestionStyleInput = {
@@ -89,4 +89,20 @@ export function findQuestionStyleIssues({
     }
 
     return [...new Set(issues)];
+}
+export function simplifyCompoundQuestion(questionText: string) {
+    const normalized = questionText.trim().replace(/\s+/gu, ' ');
+    const splitMatch = SECOND_INTENT_PATTERNS.map((pattern) =>
+        pattern.exec(normalized),
+    )
+        .filter((match): match is RegExpExecArray => match !== null)
+        .sort((left, right) => left.index - right.index)[0];
+
+    if (!splitMatch || splitMatch.index === 0) return normalized;
+
+    const firstIntent = normalized
+        .slice(0, splitMatch.index)
+        .replace(/[,:;\s?]+$/gu, '')
+        .trim();
+    return firstIntent ? `${firstIntent}?` : normalized;
 }
