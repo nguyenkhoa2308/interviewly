@@ -11,7 +11,6 @@ import {
     ChartNoAxesColumn,
     CheckCircle,
     ChevronDown,
-    Clock,
     FileText,
     House,
     List,
@@ -84,7 +83,7 @@ const navigation = [
             },
             {
                 title: 'Skill & Progress',
-                href: '/skill-progress',
+                href: '/interviews/progress',
                 icon: CheckCircle,
             },
             {
@@ -97,11 +96,6 @@ const navigation = [
     {
         label: 'LIBRARY',
         items: [
-            {
-                title: 'History',
-                href: '/history',
-                icon: Clock,
-            },
             {
                 title: 'Saved',
                 href: '/saved',
