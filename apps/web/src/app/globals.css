@@ -132,6 +132,33 @@ body {
     background: rgba(255, 255, 255, 0.3);
 }
 
+/* Compact scroll areas that should remain visibly scrollable */
+.scrollbar-primary {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--primary) 45%, transparent)
+        transparent;
+}
+
+.scrollbar-primary::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.scrollbar-primary::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.scrollbar-primary::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--primary) 42%, transparent);
+    border-radius: 9999px;
+}
+
+.scrollbar-primary::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary) 65%, transparent);
+}
+
 /* Hide scrollbar utility */
 .scrollbar-none::-webkit-scrollbar {
     display: none;

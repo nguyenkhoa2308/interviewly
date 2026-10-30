@@ -58,6 +58,7 @@ export function Logo({
             width={width}
             height={height}
             priority
+            style={{ height: 'auto' }}
             className={cn('h-auto object-contain', className)}
         />
     );
