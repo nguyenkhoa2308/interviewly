@@ -20,6 +20,10 @@ import { ListInterviewsQueryDto } from './dto/list-interviews-query.dto';
 import { SubmitInterviewAnswerDto } from './dto/submit-interview-answer.dto';
 import { InterviewRuntimeService } from './interview-runtime.service';
 import { InterviewService } from './interview.service';
+import { InterviewHistoryService } from './interview-history.service';
+import { InterviewHistoryQueryDto } from './dto/interview-history-query.dto';
+import { InterviewProgressQueryDto } from './dto/interview-progress-query.dto';
+import { InterviewEvaluationService } from './evaluation/interview-evaluation.service';
 @ApiTags('Interviews')
 @Controller('interviews')
 @UseGuards(JwtAuthGuard)
@@ -27,9 +31,13 @@ export class InterviewController {
     constructor(
         private readonly service: InterviewService,
         private readonly runtime: InterviewRuntimeService,
+        private readonly evaluation: InterviewEvaluationService,
+        private readonly historyService: InterviewHistoryService,
     ) {}
     @Get('options')
-    @ApiOperation({ summary: 'Nguồn dữ liệu có thể dùng để tạo phỏng vấn' })
+    @ApiOperation({
+        summary: 'Nguồn dữ liệu có thể dùng để tạo phỏng vấn',
+    })
     options(@CurrentUser() u: AuthUser) {
         return this.service.options(u.id);
     }
@@ -39,6 +47,26 @@ export class InterviewController {
     })
     preview(@CurrentUser() u: AuthUser, @Body() d: CreateInterviewDto) {
         return this.service.preview(u.id, d);
+    }
+    @Get('history')
+    @ApiOperation({
+        summary: 'Lịch sử phỏng vấn có phân trang và kết quả đánh giá',
+    })
+    history(
+        @CurrentUser() u: AuthUser,
+        @Query() query: InterviewHistoryQueryDto,
+    ) {
+        return this.historyService.history(u.id, query);
+    }
+    @Get('progress')
+    @ApiOperation({
+        summary: 'Tiến bộ qua các buổi phỏng vấn có thể so sánh',
+    })
+    progress(
+        @CurrentUser() u: AuthUser,
+        @Query() query: InterviewProgressQueryDto,
+    ) {
+        return this.historyService.progress(u.id, query);
     }
     @Get()
     @ApiOperation({ summary: 'Danh sách phỏng vấn của người dùng' })
@@ -58,7 +86,9 @@ export class InterviewController {
         return this.service.removeMany(u.id, d.ids);
     }
     @Post(':id/start')
-    @ApiOperation({ summary: 'Bắt đầu hoặc tiếp tục phiên phỏng vấn văn bản' })
+    @ApiOperation({
+        summary: 'Bắt đầu hoặc tiếp tục phiên phỏng vấn văn bản',
+    })
     start(
         @CurrentUser() u: AuthUser,
         @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -66,7 +96,9 @@ export class InterviewController {
         return this.runtime.start(u.id, id);
     }
     @Get(':id/session')
-    @ApiOperation({ summary: 'Trạng thái runtime hiện tại của buổi phỏng vấn' })
+    @ApiOperation({
+        summary: 'Trạng thái runtime hiện tại của buổi phỏng vấn',
+    })
     session(
         @CurrentUser() u: AuthUser,
         @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -74,7 +106,9 @@ export class InterviewController {
         return this.runtime.getState(u.id, id);
     }
     @Post(':id/session/answers')
-    @ApiOperation({ summary: 'Gửi câu trả lời cho câu hỏi hiện tại' })
+    @ApiOperation({
+        summary: 'Gửi câu trả lời cho câu hỏi hiện tại',
+    })
     answer(
         @CurrentUser() u: AuthUser,
         @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -82,7 +116,78 @@ export class InterviewController {
     ) {
         return this.runtime.submitAnswer(u.id, id, dto.turnId, dto.answer);
     }
-    @Get(':id') @ApiOperation({ summary: 'Chi tiết buổi phỏng vấn' }) get(
+    @Get(':id/transcript')
+    @ApiOperation({
+        summary: 'Transcript chỉ đọc từ phiên phỏng vấn thực tế',
+    })
+    transcript(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.historyService.transcript(u.id, id);
+    }
+    @Get(':id/question-reviews')
+    @ApiOperation({
+        summary: 'Lấy trạng thái và đánh giá chi tiết từng câu trả lời',
+    })
+    questionReviews(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.getQuestionReviews(u.id, id);
+    }
+
+    @Post(':id/question-reviews/reanalyze')
+    @ApiOperation({
+        summary: 'Phân tích lại từng câu trả lời rồi tạo lại báo cáo tổng thể',
+    })
+    reanalyzeQuestionReviews(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.reanalyzeQuestionReviews(u.id, id);
+    }
+    @Get(':id/evaluation')
+    @ApiOperation({
+        summary: 'Lấy trạng thái và báo cáo đánh giá phỏng vấn',
+    })
+    evaluationReport(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.get(u.id, id);
+    }
+    @Post(':id/evaluation')
+    @ApiOperation({
+        summary: 'Tạo báo cáo đánh giá cho phỏng vấn đã hoàn thành',
+    })
+    evaluate(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.trigger(u.id, id);
+    }
+    @Post(':id/evaluation/retry')
+    @ApiOperation({ summary: 'Thử lại báo cáo đánh giá bị lỗi' })
+    retryEvaluation(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.trigger(u.id, id, true);
+    }
+    @Post(':id/evaluation/reanalyze')
+    @ApiOperation({
+        summary: 'Phân tích lại và thay thế báo cáo đánh giá hiện tại',
+    })
+    reanalyzeEvaluation(
+        @CurrentUser() u: AuthUser,
+        @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    ) {
+        return this.evaluation.reanalyze(u.id, id);
+    }
+    @Get(':id')
+    @ApiOperation({ summary: 'Chi tiết buổi phỏng vấn' })
+    get(
         @CurrentUser() u: AuthUser,
         @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     ) {
@@ -112,7 +217,9 @@ export class InterviewController {
     ) {
         return this.service.latestPlan(u.id, id);
     }
-    @Get(':id/plans') @ApiOperation({ summary: 'Lịch sử lập kế hoạch' }) plans(
+    @Get(':id/plans')
+    @ApiOperation({ summary: 'Lịch sử lập kế hoạch' })
+    plans(
         @CurrentUser() u: AuthUser,
         @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
         @Query() q: ListInterviewPlansQueryDto,

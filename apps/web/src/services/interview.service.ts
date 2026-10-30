@@ -11,6 +11,13 @@ import type {
     InterviewStatus,
     InterviewRuntimeState,
     SubmitInterviewAnswerPayload,
+    InterviewEvaluationResponse,
+    InterviewQuestionReviewsResponse,
+    InterviewHistoryFilters,
+    InterviewHistoryResponse,
+    InterviewTranscriptResponse,
+    InterviewProgressFilters,
+    InterviewProgressResponse,
 } from '@/types/interview';
 
 async function request<T>(fn: () => Promise<T>) {
@@ -135,6 +142,102 @@ export const submitInterviewAnswer = (
                 await postData<ApiSuccessResponse<InterviewRuntimeState>>(
                     `/interviews/${id}/session/answers`,
                     payload,
+                )
+            ).data,
+    );
+
+export const getInterviewQuestionReviews = (id: string) =>
+    request(
+        async () =>
+            (
+                await getData<
+                    ApiSuccessResponse<InterviewQuestionReviewsResponse>
+                >(`/interviews/${id}/question-reviews`)
+            ).data,
+    );
+
+export const reanalyzeInterviewQuestionReviews = (id: string) =>
+    request(
+        async () =>
+            (
+                await postData<
+                    ApiSuccessResponse<InterviewQuestionReviewsResponse>
+                >(`/interviews/${id}/question-reviews/reanalyze`)
+            ).data,
+    );
+
+export const getInterviewEvaluation = (id: string) =>
+    request(
+        async () =>
+            (
+                await getData<ApiSuccessResponse<InterviewEvaluationResponse>>(
+                    `/interviews/${id}/evaluation`,
+                )
+            ).data,
+    );
+export const createInterviewEvaluation = (id: string) =>
+    request(
+        async () =>
+            (
+                await postData<ApiSuccessResponse<InterviewEvaluationResponse>>(
+                    `/interviews/${id}/evaluation`,
+                )
+            ).data,
+    );
+export const retryInterviewEvaluation = (id: string) =>
+    request(
+        async () =>
+            (
+                await postData<ApiSuccessResponse<InterviewEvaluationResponse>>(
+                    `/interviews/${id}/evaluation/retry`,
+                )
+            ).data,
+    );
+export const reanalyzeInterviewEvaluation = (id: string) =>
+    request(
+        async () =>
+            (
+                await postData<ApiSuccessResponse<InterviewEvaluationResponse>>(
+                    `/interviews/${id}/evaluation/reanalyze`,
+                )
+            ).data,
+    );
+
+function queryString(values: object): string {
+    const params = new URLSearchParams();
+    Object.entries(values).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') params.set(key, String(value));
+    });
+    const query = params.toString();
+    return query ? '?' + query : '';
+}
+
+export const getInterviewHistory = (filters: InterviewHistoryFilters = {}) =>
+    request(
+        async () =>
+            (
+                await getData<ApiSuccessResponse<InterviewHistoryResponse>>(
+                    '/interviews/history' + queryString(filters),
+                )
+            ).data,
+    );
+
+export const getInterviewTranscript = (id: string) =>
+    request(
+        async () =>
+            (
+                await getData<ApiSuccessResponse<InterviewTranscriptResponse>>(
+                    '/interviews/' + id + '/transcript',
+                )
+            ).data,
+    );
+
+export const getInterviewProgress = (filters: InterviewProgressFilters = {}) =>
+    request(
+        async () =>
+            (
+                await getData<ApiSuccessResponse<InterviewProgressResponse>>(
+                    '/interviews/progress' + queryString(filters),
                 )
             ).data,
     );

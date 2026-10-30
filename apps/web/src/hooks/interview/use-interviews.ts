@@ -14,10 +14,24 @@ import {
     startInterview,
     submitInterviewAnswer,
     regenerateInterviewPlan,
+    getInterviewEvaluation,
+    getInterviewQuestionReviews,
+    reanalyzeInterviewQuestionReviews,
+    createInterviewEvaluation,
+    retryInterviewEvaluation,
+    reanalyzeInterviewEvaluation,
+    getInterviewHistory,
+    getInterviewTranscript,
+    getInterviewProgress,
 } from '@/services/interview.service';
 
 import { interviewKeys as keys } from './interview-keys';
-import type { InterviewListSort, InterviewStatus } from '@/types/interview';
+import type {
+    InterviewHistoryFilters,
+    InterviewListSort,
+    InterviewProgressFilters,
+    InterviewStatus,
+} from '@/types/interview';
 
 const meta = { requiresAuth: true } as const;
 
@@ -138,3 +152,104 @@ export function useSubmitInterviewAnswer(id: string) {
         },
     });
 }
+
+export const useInterviewQuestionReviews = (id: string) =>
+    useQuery({
+        queryKey: keys.questionReviews(id),
+        queryFn: () => getInterviewQuestionReviews(id),
+        enabled: Boolean(id),
+        refetchInterval: (query) => {
+            const status = query.state.data?.status;
+            if (!['PENDING', 'PROCESSING'].includes(status ?? '')) return false;
+
+            const completedPolls = query.state.dataUpdateCount;
+            if (completedPolls < 4) return 3_000;
+            if (completedPolls < 10) return 5_000;
+            return 10_000;
+        },
+        meta,
+    });
+
+export function useReanalyzeInterviewQuestionReviews(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => reanalyzeInterviewQuestionReviews(id),
+        retry: false,
+        onSuccess: (data) => {
+            queryClient.setQueryData(keys.questionReviews(id), data);
+            void queryClient.invalidateQueries({
+                queryKey: keys.evaluation(id),
+            });
+        },
+    });
+}
+
+export const useInterviewEvaluation = (id: string) =>
+    useQuery({
+        queryKey: keys.evaluation(id),
+        queryFn: () => getInterviewEvaluation(id),
+        enabled: Boolean(id),
+        refetchInterval: (query) => {
+            const status = query.state.data?.status;
+            if (!['PENDING', 'PROCESSING'].includes(status ?? '')) return false;
+
+            const completedPolls = query.state.dataUpdateCount;
+            if (completedPolls < 4) return 3_000;
+            if (completedPolls < 10) return 5_000;
+            return 10_000;
+        },
+        meta,
+    });
+
+export function useCreateInterviewEvaluation(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => createInterviewEvaluation(id),
+        retry: false,
+        onSuccess: (data) =>
+            queryClient.setQueryData(keys.evaluation(id), data),
+    });
+}
+
+export function useRetryInterviewEvaluation(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => retryInterviewEvaluation(id),
+        retry: false,
+        onSuccess: (data) =>
+            queryClient.setQueryData(keys.evaluation(id), data),
+    });
+}
+
+export function useReanalyzeInterviewEvaluation(id: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => reanalyzeInterviewEvaluation(id),
+        retry: false,
+        onSuccess: (data) =>
+            queryClient.setQueryData(keys.evaluation(id), data),
+    });
+}
+
+export const useInterviewHistory = (filters: InterviewHistoryFilters) =>
+    useQuery({
+        queryKey: keys.history(filters),
+        queryFn: () => getInterviewHistory(filters),
+        placeholderData: (previousData) => previousData,
+        meta,
+    });
+
+export const useInterviewTranscript = (id: string) =>
+    useQuery({
+        queryKey: keys.transcript(id),
+        queryFn: () => getInterviewTranscript(id),
+        enabled: Boolean(id),
+        meta,
+    });
+
+export const useInterviewProgress = (filters: InterviewProgressFilters = {}) =>
+    useQuery({
+        queryKey: keys.progress(filters),
+        queryFn: () => getInterviewProgress(filters),
+        meta,
+    });
