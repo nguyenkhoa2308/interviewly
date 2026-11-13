@@ -9,7 +9,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
-        <div className="min-h-[100dvh] bg-[#f8f8fc] text-slate-950">
+        <div className="app-workspace-surface min-h-[100dvh] text-slate-950">
             <AppSidebar
                 open={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}

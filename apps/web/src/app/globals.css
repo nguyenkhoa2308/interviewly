@@ -43,6 +43,14 @@
 
     /* Radius */
     --radius: 0.75rem;
+
+    /* Authenticated workspace */
+    --workspace-border: #e6e7f2;
+    --workspace-card-border: #e9e7f3;
+    --workspace-text-secondary: #526581;
+    --workspace-text-muted: #91a0b8;
+    --workspace-card-shadow:
+        0 4px 16px rgba(36, 24, 86, 0.035), 0 12px 30px rgba(36, 24, 86, 0.025);
 }
 
 @theme inline {
@@ -98,6 +106,26 @@ html {
 
 body {
     @apply bg-background text-foreground;
+}
+
+.app-workspace-surface {
+    background:
+        radial-gradient(
+            ellipse at 52% 0%,
+            rgba(139, 92, 246, 0.055) 0%,
+            transparent 58%
+        ),
+        linear-gradient(180deg, #f9f8ff 0%, #f7f7fd 55%, #f5f4fc 100%);
+}
+
+.dashboard-card-surface {
+    border: 1px solid var(--workspace-card-border);
+    background: #fff;
+    box-shadow: var(--workspace-card-shadow);
+}
+
+.dashboard-hero-surface {
+    background: linear-gradient(110deg, #7045ff 0%, #7547f8 45%, #9f75f4 100%);
 }
 
 /* Scrollbar - both modes */

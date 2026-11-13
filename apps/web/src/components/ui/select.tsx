@@ -19,7 +19,7 @@ function SelectTrigger({
         <SelectPrimitive.Trigger
             data-slot="select-trigger"
             className={cn(
-                'border-input bg-background text-foreground data-[placeholder]:text-muted-foreground flex h-11 w-full items-center justify-between gap-2 rounded-xl border px-3.5 text-sm font-medium shadow-xs transition-[border-color,box-shadow,background-color] outline-none',
+                'group border-input bg-background text-foreground data-[placeholder]:text-muted-foreground flex h-11 w-full items-center justify-between gap-2 rounded-xl border px-3.5 text-sm font-medium shadow-xs transition-[border-color,box-shadow,background-color] outline-none',
                 'focus:border-primary focus:ring-primary/15 hover:bg-slate-50 focus:ring-3',
                 'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
                 '[&_svg]:pointer-events-none [&_svg]:shrink-0',
@@ -29,7 +29,7 @@ function SelectTrigger({
         >
             {children}
             <SelectPrimitive.Icon asChild>
-                <ChevronDown className="size-4 text-slate-500 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <ChevronDown className="size-4 text-slate-500 transition-transform duration-300 ease-in-out group-data-[state=open]:rotate-180" />
             </SelectPrimitive.Icon>
         </SelectPrimitive.Trigger>
     );
@@ -49,8 +49,9 @@ function SelectContent({
                 position={position}
                 sideOffset={sideOffset}
                 className={cn(
-                    'z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-[0_16px_45px_rgba(31,24,56,0.14)]',
-                    'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                    'z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-[0_16px_45px_rgba(31,24,56,0.14)]',
+                    'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-1 data-[state=open]:duration-300 data-[state=open]:ease-out',
+                    'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-top-1 data-[state=closed]:duration-200 data-[state=closed]:ease-in',
                     position === 'popper' &&
                         'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
                     className,

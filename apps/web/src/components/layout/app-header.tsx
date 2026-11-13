@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, ChevronDown, LogOut, Menu, UserRound } from 'lucide-react';
+import { AnimateIcon } from '@animate-ui/react/icons';
+import { ChevronDown, LogOut, Menu, UserRound } from 'lucide-react';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 
+import { Bell } from '@/components/animate-ui/icons/bell';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useLogout } from '@/hooks/auth/use-logout';
 import { useMe } from '@/hooks/auth/use-me';
@@ -15,7 +17,7 @@ export function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     const initials = user ? getInitials(user.fullName) : '';
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-violet-100 bg-white px-4 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-violet-100 bg-white px-4 sm:px-6 lg:px-8">
             <button
                 type="button"
                 aria-label="Mở thanh điều hướng"
@@ -26,14 +28,16 @@ export function AppHeader({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             </button>
 
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                <button
-                    type="button"
-                    aria-label="Thông báo"
-                    className="focus-visible:ring-primary hover:text-primary relative flex size-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:outline-none"
-                >
-                    <Bell className="size-5" />
-                    <span className="bg-primary absolute top-2.5 right-2.5 size-2 rounded-full ring-2 ring-white" />
-                </button>
+                <AnimateIcon animateOnHover animateOnTap asChild>
+                    <button
+                        type="button"
+                        aria-label="Thông báo"
+                        className="focus-visible:ring-primary hover:text-primary relative flex size-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:bg-violet-50 focus-visible:ring-2 focus-visible:outline-none"
+                    >
+                        <Bell size={20} aria-hidden="true" />
+                        <span className="bg-primary absolute top-2.5 right-2.5 size-2 rounded-full ring-2 ring-white" />
+                    </button>
+                </AnimateIcon>
 
                 <span aria-hidden="true" className="h-7 w-px bg-slate-200" />
 

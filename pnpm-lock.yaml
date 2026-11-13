@@ -431,6 +431,9 @@ importers:
 
   apps/web:
     dependencies:
+      "@animate-ui/react":
+        specifier: ^2.4.3
+        version: 2.4.3(input-otp@1.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(motion@14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(radix-ui@1.6.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       "@hookform/resolvers":
         specifier: ^5.9.1
         version: 5.9.1(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(class-transformer@0.5.1)(class-validator@0.15.1)(effect@3.20.0)(react-hook-form@7.87.0(react@19.2.8))(valibot@1.4.2(typescript@5.9.3))(zod@4.5.4)
@@ -473,6 +476,9 @@ importers:
       lucide-react:
         specifier: ^1.39.0
         version: 1.39.0(react@19.2.8)
+      motion:
+        specifier: ^14.12.0
+        version: 14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next:
         specifier: 16.3.4
         version: 16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@playwright/test@1.63.0)(@types/node@20.19.43)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -617,6 +623,44 @@ packages:
         npm: ^6.11.0 || ^7.5.6 || >=8.0.0,
         yarn: ">= 1.13.0",
       }
+
+  "@animate-ui/react@2.4.3":
+    resolution:
+      {
+        integrity: sha512-adhPmCpfhgIzfUiPnpXvFG/cwvZqLDarTregHAceGJs6e1bIPSEzITqWfpJSLNvfba/d5r5k0RcprfAhwlGtgA==,
+      }
+    peerDependencies:
+      "@base-ui/react": ^1.8.0
+      "@floating-ui/react": ^0.27.20
+      "@shadcn/react": ^0.3.1
+      embla-carousel: ^8.6.0
+      embla-carousel-react: ^8.6.0
+      input-otp: ^1.5.0
+      motion: ^14.0.0
+      radix-ui: ^1.6.0
+      react: ^19.0.0
+      react-aria-components: ^1.21.0
+      react-dom: ^19.0.0
+      shiki: ^4.5.0
+    peerDependenciesMeta:
+      "@base-ui/react":
+        optional: true
+      "@floating-ui/react":
+        optional: true
+      "@shadcn/react":
+        optional: true
+      embla-carousel:
+        optional: true
+      embla-carousel-react:
+        optional: true
+      input-otp:
+        optional: true
+      radix-ui:
+        optional: true
+      react-aria-components:
+        optional: true
+      shiki:
+        optional: true
 
   "@asamuzakjp/css-color@6.0.7":
     resolution:
@@ -4499,6 +4543,9 @@ packages:
         integrity: sha512-CsOeKq/9kA3y6VJHt+/+VTCtBaxJ4OTFpgrjIUhPpDIKxBci1k2bJaQASF2h/ELWrulGp+t97DZ0mevfAD8idg==,
       }
     engines: { node: ">=18.0.0" }
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   "@smithy/credential-provider-imds@4.5.2":
     resolution:
@@ -8053,6 +8100,23 @@ packages:
       }
     engines: { node: ">= 0.6" }
 
+  framer-motion@14.12.0:
+    resolution:
+      {
+        integrity: sha512-4m+10xYan0ic8nFI8zyB5hJkW5F8F4Rer617UecOs8esw0he9unDgXaEZ0rUX7oztz1w4iuvyPWhk4jltMX5iw==,
+      }
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+      remix: ^3.1.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      remix:
+        optional: true
+
   fresh@2.0.0:
     resolution:
       {
@@ -10011,6 +10075,35 @@ packages:
         integrity: sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==,
       }
     engines: { node: ">=16 || 14 >=14.17" }
+
+  motion-dom@14.12.0:
+    resolution:
+      {
+        integrity: sha512-YnAY17g8mXRVoXGZbH+v/O2SkNBJqz2TMuqL9yek9Omfhsdjw7gJwNgI5nsGZFpbbm3vINyOo+VtGPryIslatw==,
+      }
+
+  motion-utils@14.7.0:
+    resolution:
+      {
+        integrity: sha512-woO0/Nb7ys75f94fjvQi/6leiHGvZUYkeHUPEZ3vxsV+9OpEVhkxp01x8MlRwX0zt31EqgXsKDAoBoJLC148Tw==,
+      }
+
+  motion@14.12.0:
+    resolution:
+      {
+        integrity: sha512-cxD0c0yGXo/mzPgveXMsXGl138UNsRit9XgInK8kThtDsrvIkhlAR9b6WYoAm7EmKWToMFx6v/G8i0Zjv+2uoA==,
+      }
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+      remix: ^3.1.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      remix:
+        optional: true
 
   ms@2.1.3:
     resolution:
@@ -13007,6 +13100,15 @@ snapshots:
       rxjs: 7.8.2
     transitivePeerDependencies:
       - chokidar
+
+  "@animate-ui/react@2.4.3(input-otp@1.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(motion@14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(radix-ui@1.6.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)":
+    dependencies:
+      motion: 14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+    optionalDependencies:
+      input-otp: 1.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      radix-ui: 1.6.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
   "@asamuzakjp/css-color@6.0.7":
     dependencies:
@@ -17988,6 +18090,15 @@ snapshots:
 
   forwarded@0.2.0: {}
 
+  framer-motion@14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      motion-dom: 14.12.0
+      motion-utils: 14.7.0
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+
   fresh@2.0.0: {}
 
   fs-extra@11.4.0:
@@ -19213,6 +19324,20 @@ snapshots:
       uglify-js: 3.19.3
 
   minipass@7.1.3: {}
+
+  motion-dom@14.12.0:
+    dependencies:
+      motion-utils: 14.7.0
+
+  motion-utils@14.7.0: {}
+
+  motion@14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      framer-motion: 14.12.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   ms@2.1.3: {}
 

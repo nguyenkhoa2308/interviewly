@@ -152,12 +152,12 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             <aside
                 aria-label="Điều hướng chính"
                 className={cn(
-                    'fixed top-0 left-0 z-50 flex h-[100svh] w-64 touch-pan-y flex-col overflow-x-hidden overflow-y-auto overscroll-contain border-r border-violet-100 bg-white transition-transform duration-200 ease-out [-webkit-overflow-scrolling:touch] 2xl:bottom-0 2xl:h-auto 2xl:translate-x-0',
+                    'fixed top-0 left-0 z-50 flex h-[100svh] w-64 touch-pan-y flex-col overflow-hidden border-r border-violet-100 bg-white transition-transform duration-200 ease-out 2xl:bottom-0 2xl:h-auto 2xl:translate-x-0',
                     open ? 'translate-x-0' : '-translate-x-full',
                 )}
             >
-                <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-violet-100 bg-white px-5 2xl:h-16">
-                    <Logo width={151} height={38} />
+                <div className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between bg-white px-5 2xl:h-16">
+                    <Logo width={140} height={47} />
                     <button
                         type="button"
                         aria-label="Đóng thanh điều hướng"
@@ -168,11 +168,11 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                     </button>
                 </div>
 
-                <div className="px-3 pt-1 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] 2xl:py-5">
+                <div className="relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 pt-1 pb-[max(8rem,calc(env(safe-area-inset-bottom)+6rem))] [-webkit-overflow-scrolling:touch] 2xl:overflow-y-hidden 2xl:pt-3 2xl:pb-28">
                     {/* <p className="px-3 text-xs font-bold tracking-wide text-slate-400 uppercase">
                         Không gian làm việc
                     </p> */}
-                    <nav className="mt-1 space-y-1.5 2xl:mt-3 2xl:space-y-4">
+                    <nav className="mt-1 space-y-1.5 2xl:mt-2 2xl:space-y-[18px]">
                         {navigation.map((group, index) => {
                             const groupId = group.label
                                 ? `app-sidebar-${group.label.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`
@@ -196,7 +196,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                                                 type="button"
                                                 aria-expanded={expanded}
                                                 aria-controls={groupId}
-                                                className="focus-visible:ring-primary flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-[7px] text-left text-[13px] font-bold tracking-wide text-slate-400 uppercase hover:bg-slate-50 hover:text-slate-600 focus-visible:ring-2 focus-visible:outline-none 2xl:hidden"
+                                                className="focus-visible:ring-primary flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-[7px] text-left text-xs font-bold tracking-[0.04em] text-slate-400 uppercase hover:bg-slate-50 hover:text-slate-600 focus-visible:ring-2 focus-visible:outline-none 2xl:hidden"
                                                 onClick={() =>
                                                     setExpandedGroup(
                                                         expanded
@@ -214,7 +214,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                                                     )}
                                                 />
                                             </button>
-                                            <p className="mb-3 hidden px-3 text-[13px] font-bold tracking-wide text-slate-400 uppercase 2xl:block">
+                                            <p className="mb-2.5 hidden px-3 text-xs font-bold tracking-[0.04em] text-slate-400 uppercase 2xl:block">
                                                 {group.label}
                                             </p>
                                         </>
@@ -252,28 +252,28 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                                                         onClose();
                                                     }}
                                                     className={cn(
-                                                        'flex items-center gap-3 rounded-lg px-3 py-[7px] 2xl:py-2',
+                                                        'flex min-h-10 items-center gap-3 rounded-xl px-3 py-[7px] transition-colors duration-150 2xl:py-2',
                                                         isActive
-                                                            ? 'bg-primary/10 text-primary'
-                                                            : 'text-slate-700 hover:bg-slate-50',
+                                                            ? 'text-primary bg-[#ece3ff]'
+                                                            : 'text-slate-800 hover:bg-violet-50/80',
                                                     )}
                                                 >
                                                     <Icon
                                                         className={cn(
-                                                            'size-5',
+                                                            'size-5 shrink-0',
                                                             isActive
                                                                 ? 'text-primary'
-                                                                : 'text-slate-400',
+                                                                : 'text-slate-500',
                                                         )}
                                                         strokeWidth={2}
                                                     />
 
                                                     <span
                                                         className={cn(
-                                                            'text-[15px] font-bold',
+                                                            'text-[15px] leading-5 font-extrabold tracking-[-0.01em]',
                                                             isActive
                                                                 ? 'text-primary'
-                                                                : 'text-slate-800',
+                                                                : 'text-slate-900',
                                                         )}
                                                     >
                                                         {item.title}
@@ -287,6 +287,23 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                         })}
                     </nav>
                 </div>
+                <svg
+                    aria-hidden="true"
+                    viewBox="0 0 256 120"
+                    preserveAspectRatio="none"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-28 w-full"
+                >
+                    <path
+                        d="M0 47C42 31 72 33 108 48C149 66 185 60 256 23V120H0Z"
+                        fill="#7045FF"
+                        fillOpacity="0.035"
+                    />
+                    <path
+                        d="M0 78C44 44 83 49 131 82C175 112 213 78 256 53V120H0Z"
+                        fill="#7045FF"
+                        fillOpacity="0.075"
+                    />
+                </svg>
             </aside>
         </>
     );
