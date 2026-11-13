@@ -88,7 +88,9 @@ test('renders secure parsed content without horizontal page overflow', async ({
     await expect(
         page.getByRole('heading', { level: 1, name: 'CV Backend Developer' }),
     ).toBeVisible();
-    await expect(page.getByText('Sẵn sàng')).toBeVisible();
+    await expect(
+        page.getByText('Sẵn sàng', { exact: true }).first(),
+    ).toBeVisible();
     await expect(page.getByText(`<script>alert('xss')</script>`)).toBeVisible();
     await expect(
         page.locator('script').filter({ hasText: "alert('xss')" }),

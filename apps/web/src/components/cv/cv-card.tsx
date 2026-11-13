@@ -1,6 +1,13 @@
 'use client';
 
-import { ArrowRight, CalendarDays, Check, RefreshCw, Star } from 'lucide-react';
+import {
+    ArrowRight,
+    CalendarDays,
+    Check,
+    Coins,
+    RefreshCw,
+    Star,
+} from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -35,7 +42,7 @@ export function CvCard({
     return (
         <article
             className={
-                'group relative isolate flex min-h-72 min-w-0 cursor-pointer flex-col rounded-2xl bg-white p-5 shadow-[0_8px_26px_rgba(55,44,108,0.05)] transition-all duration-300 hover:scale-[1.01] hover:shadow-[0_16px_38px_rgba(70,48,150,0.085)] ' +
+                'group relative isolate flex h-full min-h-60 min-w-0 cursor-pointer flex-col rounded-2xl bg-white p-5 shadow-[0_8px_26px_rgba(55,44,108,0.055)] transition-[border-color,box-shadow] duration-300 hover:shadow-[0_14px_34px_rgba(70,48,150,0.085)] ' +
                 (selected
                     ? 'border-2 border-violet-500 ring-4 ring-violet-100'
                     : 'border border-violet-100/90 hover:border-violet-200')
@@ -68,7 +75,7 @@ export function CvCard({
                     <Check className="size-3.5" strokeWidth={3} />
                 </span>
             )}
-            <div className="flex items-start justify-between gap-4">
+            <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-x-4">
                 <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
                     <Image
                         src="/icons/pdf-file.svg"
@@ -78,86 +85,88 @@ export function CvCard({
                         aria-hidden="true"
                     />
                 </span>
-                <div className="flex min-w-0 items-center gap-2">
-                    <CvStatusBadge status={cv.processingStatus} />
-                    <div className="relative z-20">
-                        <CvActionsMenu
-                            cv={cv}
-                            actionPending={actionPending}
-                            showView={false}
-                            onRename={onRename}
-                            onSetDefault={onSetDefault}
-                            onDelete={onDelete}
+                <div className="min-w-0 pt-0.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <h2
+                            className="max-w-full min-w-0 text-lg leading-6 font-extrabold tracking-[-0.015em] break-words text-slate-950"
+                            title={cv.name}
+                        >
+                            {cv.name}
+                        </h2>
+                        {cv.isDefault && (
+                            <span className="text-primary bg-primary/9 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-extrabold">
+                                <Star
+                                    className="size-3.5 fill-current"
+                                    aria-hidden="true"
+                                />
+                                Mặc định
+                            </span>
+                        )}
+                        <CvStatusBadge
+                            status={cv.processingStatus}
+                            className="px-2 py-1 text-xs"
                         />
                     </div>
+                    <p
+                        className="mt-1.5 line-clamp-2 text-sm leading-5 font-medium break-all text-slate-500"
+                        title={cv.originalFilename}
+                    >
+                        {cv.originalFilename}
+                    </p>
+                </div>
+                <div className="relative z-20 shrink-0">
+                    <CvActionsMenu
+                        cv={cv}
+                        actionPending={actionPending}
+                        showView={false}
+                        onRename={onRename}
+                        onSetDefault={onSetDefault}
+                        onDelete={onDelete}
+                    />
                 </div>
             </div>
 
-            <div className="mt-5 min-w-0">
-                <h2
-                    className="truncate text-lg font-extrabold tracking-[-0.015em] text-slate-950"
-                    title={cv.name}
-                >
-                    {cv.name}
-                </h2>
-                <p
-                    className="mt-1 truncate text-sm font-medium text-slate-500"
-                    title={cv.originalFilename}
-                >
-                    {cv.originalFilename}
-                </p>
-            </div>
-
-            <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                <div className="min-w-0">
-                    <dt className="text-xs font-semibold text-slate-400">
+            <dl className="mt-5 grid grid-cols-2 gap-5 px-2 text-sm">
+                <div className="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2">
+                    <CalendarDays
+                        className="text-primary mt-0.5 size-[18px] shrink-0"
+                        aria-hidden="true"
+                    />
+                    <dt className="text-xs font-semibold text-slate-500">
                         Ngày tải lên
                     </dt>
-                    <dd className="mt-1.5 flex items-center gap-2 font-bold text-slate-700">
-                        <CalendarDays
-                            className="text-primary size-4 shrink-0"
-                            aria-hidden="true"
-                        />
+                    <dd className="col-start-2 mt-0.5 font-extrabold text-slate-800">
                         <time dateTime={cv.createdAt}>
                             {formatCvDate(cv.createdAt)}
                         </time>
                     </dd>
                 </div>
-                <div className="min-w-0">
-                    <dt className="text-xs font-semibold text-slate-400">
+                <div className="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2">
+                    <Coins
+                        className="text-primary mt-0.5 size-[18px] shrink-0"
+                        aria-hidden="true"
+                    />
+                    <dt className="text-xs font-semibold text-slate-500">
                         Dung lượng
                     </dt>
-                    <dd className="mt-1.5 font-bold text-slate-700">
+                    <dd className="col-start-2 mt-0.5 font-extrabold text-slate-800">
                         {formatFileSize(cv.fileSize)}
                     </dd>
                 </div>
             </dl>
 
-            <div className="mt-auto pt-5">
-                <div className="mb-3 min-h-7">
-                    {cv.isDefault ? (
-                        <span className="text-primary bg-primary/8 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-extrabold">
-                            <Star
-                                className="size-3.5 fill-current"
-                                aria-hidden="true"
-                            />
-                            Mặc định
-                        </span>
-                    ) : (
-                        <span />
-                    )}
-                </div>
+            <div className="mt-auto pt-4">
                 {cv.processingStatus === 'FAILED' ? (
                     <button
                         type="button"
-                        className="relative z-20 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 text-sm font-bold text-red-700 transition-colors hover:bg-red-100"
+                        className="relative z-20 flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 text-sm font-extrabold text-red-700 transition-colors hover:bg-red-100"
                         onClick={() => onRetryUpload(cv)}
                     >
                         <RefreshCw className="size-4" aria-hidden="true" />
                         Tải lại tệp
                     </button>
                 ) : (
-                    <div className="text-primary flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-violet-200 text-sm font-bold transition-colors group-hover:bg-violet-50/70">
+                    <div className="text-primary flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-violet-300 text-sm font-extrabold transition-colors group-hover:bg-violet-50/70">
                         Xem chi tiết
                         <ArrowRight className="size-4" aria-hidden="true" />
                     </div>

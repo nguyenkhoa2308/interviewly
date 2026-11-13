@@ -6,9 +6,6 @@ import type {
     Interview,
     InterviewOptions,
     InterviewPlanPreview,
-    InterviewListResponse,
-    InterviewListSort,
-    InterviewStatus,
     InterviewRuntimeState,
     SubmitInterviewAnswerPayload,
     InterviewEvaluationResponse,
@@ -38,20 +35,6 @@ export const getInterviewOptions = () =>
             ).data,
     );
 
-export const getInterviews = (
-    page = 1,
-    status?: InterviewStatus,
-    search?: string,
-    sort: InterviewListSort = 'RECENTLY_UPDATED',
-) =>
-    request(
-        async () =>
-            (
-                await getData<ApiSuccessResponse<InterviewListResponse>>(
-                    `/interviews?page=${page}&limit=9${status ? `&status=${status}` : ''}${search ? `&search=${encodeURIComponent(search)}` : ''}&sort=${sort}`,
-                )
-            ).data,
-    );
 export const previewInterviewPlan = (payload: CreateInterviewPayload) =>
     request(
         async () =>
@@ -87,17 +70,6 @@ export const deleteInterview = (id: string) =>
             (
                 await deleteData<ApiSuccessResponse<{ id: string }>>(
                     `/interviews/${id}`,
-                )
-            ).data,
-    );
-
-export const deleteInterviews = (ids: string[]) =>
-    request(
-        async () =>
-            (
-                await deleteData<ApiSuccessResponse<{ deletedCount: number }>>(
-                    '/interviews/bulk',
-                    { data: { ids } },
                 )
             ).data,
     );

@@ -216,7 +216,7 @@ function DetailHeader({
     onDelete: () => void;
 }) {
     return (
-        <header className="mt-5 border-b border-slate-200 pb-6">
+        <header className="mt-5 pb-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
                     {editing ? (
@@ -241,14 +241,17 @@ function DetailHeader({
                         </div>
                     ) : (
                         <>
-                            <div className="flex min-w-0 flex-wrap items-center gap-3">
+                            <p className="text-primary text-[13px] leading-4 font-black tracking-widest uppercase">
+                                Chi tiết mô tả công việc
+                            </p>
+                            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-3">
                                 <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
                                     <FileText
                                         className="size-5"
                                         aria-hidden="true"
                                     />
                                 </span>
-                                <h1 className="min-w-0 text-3xl leading-tight font-extrabold tracking-tight break-words text-slate-950 sm:text-4xl">
+                                <h1 className="min-w-0 text-3xl leading-tight font-black tracking-tight break-words text-slate-950 sm:text-4xl">
                                     {jd.title}
                                 </h1>
                                 {analysis && (

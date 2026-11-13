@@ -1,0 +1,11 @@
+<svg width="360" height="280" viewBox="0 0 360 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="screen" x1="106" y1="54" x2="253" y2="208" gradientUnits="userSpaceOnUse"><stop stop-color="#8B5CF6"/><stop offset="1" stop-color="#5B21B6"/></linearGradient>
+    <linearGradient id="base" x1="78" y1="203" x2="286" y2="235" gradientUnits="userSpaceOnUse"><stop stop-color="#DDD6FE"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+    <filter id="shadow" x="42" y="32" width="280" height="232" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#6D3CDC" flood-opacity=".2"/></filter>
+  </defs>
+  <ellipse cx="180" cy="239" rx="111" ry="18" fill="#EDE9FE"/><circle cx="76" cy="80" r="10" fill="#F5F3FF"/><circle cx="292" cy="101" r="7" fill="#DDD6FE"/>
+  <path d="M64 127l5 9 10 2-7 7 2 10-10-5-9 5 2-10-7-7 10-2 4-9z" fill="#C4B5FD"/>
+  <g filter="url(#shadow)"><rect x="91" y="48" width="178" height="166" rx="21" fill="url(#screen)"/><rect x="105" y="63" width="150" height="134" rx="13" fill="#F8F7FF"/><rect x="128" y="91" width="77" height="10" rx="5" fill="#DDD6FE"/><rect x="128" y="111" width="103" height="8" rx="4" fill="#EDE9FE"/><rect x="128" y="127" width="86" height="8" rx="4" fill="#EDE9FE"/><path d="M72 205h216l-20 31H92l-20-31z" fill="url(#base)"/><path d="M147 205h66l-7 12h-52l-7-12z" fill="#F5F3FF"/></g>
+  <circle cx="248" cy="77" r="35" fill="#FB7185"/><circle cx="248" cy="77" r="28" fill="#FFF1F2"/><path d="M248 59v21" stroke="#E11D48" stroke-width="7" stroke-linecap="round"/><circle cx="248" cy="91" r="4" fill="#E11D48"/><path d="M299 154c8-5 17-5 25 0M304 168c5-3 10-3 15 0" stroke="#A78BFA" stroke-width="5" stroke-linecap="round"/>
+</svg>

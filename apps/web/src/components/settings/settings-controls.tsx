@@ -248,34 +248,3 @@ export function ComingSoon() {
         </span>
     );
 }
-
-export function SelectedChip({
-    selected,
-    children,
-}: {
-    selected: boolean;
-    children: React.ReactNode;
-}) {
-    return (
-        <span
-            className={cn(
-                'inline-flex min-h-9 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold',
-                selected
-                    ? 'border-primary/25 bg-primary/6 text-primary'
-                    : 'border-slate-200 bg-slate-50 text-slate-400',
-            )}
-        >
-            <span
-                className={cn(
-                    'flex size-4 items-center justify-center rounded-[5px] border',
-                    selected
-                        ? 'bg-primary border-primary text-white'
-                        : 'border-slate-300 bg-white',
-                )}
-            >
-                {selected && <Check className="size-3" strokeWidth={3} />}
-            </span>
-            {children}
-        </span>
-    );
-}

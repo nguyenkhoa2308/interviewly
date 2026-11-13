@@ -1,10 +1,7 @@
 'use client';
 
 import {
-    ChevronLeft,
-    ChevronRight,
     CloudUpload,
-    FilePlus2,
     RefreshCw,
     Search,
     Sparkles,
@@ -19,6 +16,8 @@ import { toast } from 'sonner';
 
 import { CvCard } from '@/components/cv/cv-card';
 import { CvCompareDialog } from '@/components/cv/cv-compare-dialog';
+import { DataState, EmptyDataState } from '@/components/common/data-state';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import {
     DeleteCvDialog,
     RenameCvDialog,
@@ -27,6 +26,7 @@ import {
 } from '@/components/cv/cv-dialogs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ListPagination } from '@/components/ui/list-pagination';
 import {
     Select,
     SelectContent,
@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/select';
 import { useCvManagementCollection, useSetDefaultCv } from '@/hooks/cv';
 import { cn } from '@/lib/utils';
-import type { ApiError } from '@/lib/api-error';
 import type { CvListItem, CvProcessingStatus } from '@/types/cv';
 
 type StatusFilter =
@@ -50,7 +49,7 @@ const filters: Array<{ value: StatusFilter; label: string }> = [
     { value: 'FAILED', label: 'Thất bại' },
 ];
 const emptyCvCollection: CvListItem[] = [];
-const CVS_PER_PAGE = 8;
+const CVS_PER_PAGE = 9;
 
 export function CvManagementPage() {
     const [status, setStatus] = useState<StatusFilter>('ALL');
@@ -96,6 +95,9 @@ export function CvManagementPage() {
     const totalPages = Math.max(1, pagination?.totalPages ?? 1);
     const currentPage = Math.min(page, totalPages);
     const totalCvs = pagination?.total ?? cvs.length;
+    const isEmptyState =
+        !cvQuery.isPending && !cvQuery.isError && counts.ALL === 0;
+    const isViewportState = isEmptyState || cvQuery.isError;
 
     useEffect(() => {
         if (!pagination || page <= totalPages) return;
@@ -132,47 +134,64 @@ export function CvManagementPage() {
     };
 
     return (
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-            <section className="relative isolate min-h-44 overflow-hidden py-4 sm:min-h-48 lg:min-h-52">
-                {/* <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-full bg-[radial-gradient(circle_at_58%_20%,rgba(139,92,246,0.09),transparent_34%),linear-gradient(180deg,rgba(248,247,255,0.78),rgba(255,255,255,0))]"
-                /> */}
-                <div className="relative z-10 flex min-h-36 max-w-md flex-col items-start justify-center sm:min-h-40 md:max-w-[42%] lg:max-w-[44%] 2xl:max-w-lg">
-                    <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
-                        Quản lý CV
-                    </p>
-                    <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.035em] text-slate-950 sm:text-4xl">
-                        CV của bạn
-                    </h1>
-                    <p className="mt-2 max-w-lg text-sm leading-6 font-medium text-slate-500 sm:text-[15px]">
-                        Quản lý các phiên bản CV, phân tích bằng AI và chuẩn bị
-                        tốt hơn cho cơ hội nghề nghiệp tiếp theo.
-                    </p>
-                </div>
-                <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 right-6 left-[44%] -z-10 hidden md:block lg:right-10 lg:left-[46%] 2xl:right-40 2xl:left-[31%]"
-                >
-                    <Image
-                        src="/images/cvs/cv-header-illustration.png"
-                        alt=""
-                        fill
-                        priority
-                        sizes="(min-width: 1280px) 44vw, (min-width: 1024px) 50vw, 58vw"
-                        className="object-contain object-center opacity-[0.55] 2xl:opacity-70"
-                    />
-                </div>
-                <Button
-                    className="relative z-10 mt-1 rounded-lg px-5 font-bold shadow-[0_8px_22px_rgba(109,60,220,0.16)] lg:absolute lg:top-1/2 lg:right-1 lg:mt-0 lg:-translate-y-1/2"
-                    onClick={() => setUploadOpen(true)}
-                >
-                    <Upload className="size-4" aria-hidden="true" />
-                    Tải CV lên
-                </Button>
-            </section>
+        <main
+            className={cn(
+                'relative isolate mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1600px] px-4 pt-7 pb-5 sm:px-6 sm:pt-8 lg:px-8 xl:pt-7 xl:pb-4',
+                isViewportState &&
+                    'xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:overflow-hidden',
+            )}
+        >
+            <svg
+                aria-hidden="true"
+                viewBox="0 0 1000 150"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute right-0 bottom-0 -z-10 hidden h-28 w-[58%] lg:block"
+            >
+                <path
+                    d="M0 150V112C92 110 148 62 242 65C337 68 366 112 475 107C580 102 624 29 734 25C824 22 845 77 923 79C955 80 979 72 1000 66V150Z"
+                    className="fill-violet-100/60"
+                />
+            </svg>
+            <AppPageHeader
+                className="mx-auto min-h-36 w-full shrink-0 overflow-hidden py-3 sm:min-h-40 lg:items-center xl:min-h-32 xl:py-1"
+                contentClassName="flex min-h-32 max-w-md flex-col items-start justify-center sm:min-h-36 md:max-w-[42%] lg:max-w-[44%] xl:min-h-28 2xl:max-w-lg"
+                eyebrow="Quản lý CV"
+                title="CV của bạn"
+                description="Quản lý các phiên bản CV, phân tích bằng AI và chuẩn bị tốt hơn cho cơ hội nghề nghiệp tiếp theo."
+                decoration={
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-0 right-6 left-[44%] -z-10 hidden md:block lg:right-10 lg:left-[46%] 2xl:right-40 2xl:left-[31%]"
+                    >
+                        <Image
+                            src="/images/cvs/cv-header-illustration.png"
+                            alt=""
+                            fill
+                            priority
+                            sizes="(min-width: 1280px) 44vw, (min-width: 1024px) 50vw, 58vw"
+                            className="scale-125 object-contain object-center opacity-80 2xl:scale-[1.35] 2xl:opacity-90"
+                        />
+                    </div>
+                }
+                actions={
+                    <Button
+                        className="h-12 !rounded-lg px-5 text-sm font-bold shadow-[0_8px_22px_rgba(109,60,220,0.16)]"
+                        onClick={() => setUploadOpen(true)}
+                    >
+                        <Upload className="size-4" aria-hidden="true" />
+                        Tải CV lên
+                    </Button>
+                }
+            />
 
-            <section aria-label="Danh sách CV" className="mt-1">
+            <section
+                aria-label="Danh sách CV"
+                className={cn(
+                    'mx-auto mt-5 w-full',
+                    isViewportState &&
+                        'xl:flex xl:min-h-0 xl:flex-1 xl:flex-col',
+                )}
+            >
                 <div className="flex flex-wrap items-center gap-4 rounded-xl border border-violet-100/80 bg-white/90 p-2.5 shadow-[0_8px_26px_rgba(70,48,150,0.045)]">
                     <div className="min-w-0 flex-1 basis-[440px]">
                         <Select
@@ -250,7 +269,7 @@ export function CvManagementPage() {
                         <Button
                             type="button"
                             variant={compareMode ? 'default' : 'outline'}
-                            className="h-11 rounded-sm !font-bold transition-all duration-300"
+                            className="h-11 !rounded-lg !font-bold transition-all duration-300"
                             onClick={() => {
                                 setCompareMode((value) => !value);
                                 setSelectedCvs([]);
@@ -319,22 +338,40 @@ export function CvManagementPage() {
                     </div>
                 </div>
 
-                <div className="relative min-h-80 py-5">
-                    {compareMode && (
-                        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-violet-100 bg-violet-50/55 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-sm font-bold text-slate-700">
-                                Chọn đúng 2 CV để so sánh · Đã chọn{' '}
-                                {selectedCvs.length}/2
-                            </p>
-                            <Button
-                                disabled={selectedCvs.length !== 2}
-                                onClick={() => setCompareOpen(true)}
-                                className="h-11 rounded-sm px-6"
-                            >
-                                So sánh đã chọn
-                            </Button>
-                        </div>
+                <div
+                    className={cn(
+                        'relative z-10 min-h-80 pt-6 pb-4',
+                        isViewportState &&
+                            'xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:pb-0',
                     )}
+                >
+                    <div
+                        aria-hidden={!compareMode}
+                        className={cn(
+                            'grid transition-[grid-template-rows,opacity,margin-bottom] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                            compareMode
+                                ? 'mb-4 grid-rows-[1fr] opacity-100'
+                                : 'pointer-events-none mb-0 grid-rows-[0fr] opacity-0',
+                        )}
+                    >
+                        <div className="min-h-0 overflow-hidden">
+                            <div className="flex flex-col gap-3 rounded-xl border border-violet-100 bg-violet-50/55 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm font-bold text-slate-700">
+                                    Chọn đúng 2 CV để so sánh · Đã chọn{' '}
+                                    {selectedCvs.length}/2
+                                </p>
+                                <Button
+                                    disabled={
+                                        !compareMode || selectedCvs.length !== 2
+                                    }
+                                    onClick={() => setCompareOpen(true)}
+                                    className="h-11 rounded-sm px-6"
+                                >
+                                    So sánh đã chọn
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                     {cvQuery.isFetching && !cvQuery.isPending && (
                         <div className="absolute top-1 right-1 flex items-center gap-1.5 text-xs font-semibold text-slate-400">
                             <RefreshCw
@@ -348,10 +385,7 @@ export function CvManagementPage() {
                     {cvQuery.isPending ? (
                         <CvListSkeleton />
                     ) : cvQuery.isError ? (
-                        <CvListError
-                            error={cvQuery.error as ApiError}
-                            onRetry={() => void cvQuery.refetch()}
-                        />
+                        <CvListError onRetry={() => void cvQuery.refetch()} />
                     ) : counts.ALL === 0 ? (
                         <CvEmptyState onUpload={() => setUploadOpen(true)} />
                     ) : cvs.length === 0 ? (
@@ -364,7 +398,7 @@ export function CvManagementPage() {
                             }}
                         />
                     ) : (
-                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid auto-rows-fr gap-5 md:grid-cols-2 xl:grid-cols-3">
                             {cvs.map((cv) => (
                                 <CvCard
                                     key={cv.id}
@@ -383,65 +417,21 @@ export function CvManagementPage() {
                                     onToggleSelection={toggleCompareCv}
                                 />
                             ))}
-                            <CvUploadCard
-                                onUpload={() => setUploadOpen(true)}
-                            />
                         </div>
                     )}
 
-                    {totalPages > 1 && (
-                        <nav
-                            className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between"
-                            aria-label="Phân trang danh sách CV"
-                        >
-                            <p className="text-sm font-medium text-slate-500">
-                                Hiển thị{' '}
-                                <span className="font-bold text-slate-700">
-                                    {(currentPage - 1) * CVS_PER_PAGE + 1}–
-                                    {Math.min(
-                                        currentPage * CVS_PER_PAGE,
-                                        totalCvs,
-                                    )}
-                                </span>{' '}
-                                trong {totalCvs} CV
-                            </p>
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-lg font-bold"
-                                    disabled={currentPage === 1}
-                                    onClick={() =>
-                                        setPage(Math.max(1, currentPage - 1))
-                                    }
-                                >
-                                    <ChevronLeft className="size-4" />
-                                    Trước
-                                </Button>
-                                <span className="min-w-16 text-center text-sm font-bold text-slate-700 tabular-nums">
-                                    {currentPage}/{totalPages}
-                                </span>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-lg font-bold"
-                                    disabled={currentPage === totalPages}
-                                    onClick={() =>
-                                        setPage(
-                                            Math.min(
-                                                totalPages,
-                                                currentPage + 1,
-                                            ),
-                                        )
-                                    }
-                                >
-                                    Sau
-                                    <ChevronRight className="size-4" />
-                                </Button>
-                            </div>
-                        </nav>
+                    {!cvQuery.isError && totalCvs > 0 && (
+                        <ListPagination
+                            page={currentPage}
+                            pageSize={CVS_PER_PAGE}
+                            total={totalCvs}
+                            totalPages={totalPages}
+                            itemLabel="CV"
+                            ariaLabel="Phân trang danh sách CV"
+                            pending={cvQuery.isFetching}
+                            onPageChange={setPage}
+                            className="mt-7 border-0 pt-3 xl:pb-1"
+                        />
                     )}
                 </div>
             </section>
@@ -475,7 +465,7 @@ export function CvManagementPage() {
     );
 }
 
-function CvUploadCard({ onUpload }: { onUpload: () => void }) {
+export function CvUploadCard({ onUpload }: { onUpload: () => void }) {
     return (
         <button
             type="button"
@@ -517,11 +507,24 @@ function CvListSkeleton() {
             aria-label="Đang tải danh sách CV"
             aria-busy="true"
         >
-            {Array.from({ length: 3 }).map((_, index) => (
+            {Array.from({ length: 6 }).map((_, index) => (
                 <div
                     key={index}
-                    className="h-72 animate-pulse rounded-2xl border border-slate-100 bg-white shadow-sm"
-                />
+                    className="h-72 animate-pulse rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
+                >
+                    <div className="flex gap-4">
+                        <div className="size-12 rounded-xl bg-slate-100" />
+                        <div className="flex-1 space-y-2">
+                            <div className="h-4 w-2/3 rounded bg-slate-100" />
+                            <div className="h-3 w-1/2 rounded bg-slate-100" />
+                        </div>
+                    </div>
+                    <div className="mt-7 grid grid-cols-2 gap-5">
+                        <div className="h-11 rounded-lg bg-slate-100" />
+                        <div className="h-11 rounded-lg bg-slate-100" />
+                    </div>
+                    <div className="mt-16 h-10 rounded-lg bg-slate-100" />
+                </div>
             ))}
         </div>
     );
@@ -529,58 +532,72 @@ function CvListSkeleton() {
 
 function CvEmptyState({ onUpload }: { onUpload: () => void }) {
     return (
-        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200 bg-violet-50/25 px-4 text-center">
-            <span className="bg-primary/8 text-primary flex size-16 items-center justify-center rounded-2xl">
-                <FilePlus2 className="size-7" aria-hidden="true" />
-            </span>
-            <h2 className="mt-5 text-xl font-extrabold text-slate-950">
-                Bạn chưa có CV nào
-            </h2>
-            <p className="mt-2 max-w-md text-sm leading-6 font-medium text-slate-500">
-                Tải CV đầu tiên để nhận phân tích từ AI và chuẩn bị tốt hơn cho
-                các buổi phỏng vấn.
-            </p>
-            <Button className="mt-5" onClick={onUpload}>
-                <Upload className="size-4" aria-hidden="true" />
-                Tải CV đầu tiên
-            </Button>
-        </div>
+        <EmptyDataState
+            title="Bạn chưa có CV nào"
+            description="Tải lên CV đầu tiên để quản lý, phân tích và tối ưu cho cơ hội phù hợp."
+            illustrationSrc="/images/cvs/cv-empty-state.png"
+            illustrationAlt="Minh họa tải CV lên Interviewly"
+            action={
+                <Button
+                    className="h-12 !rounded-lg px-7 text-base font-extrabold shadow-[0_10px_24px_rgba(109,60,220,0.24)]"
+                    onClick={onUpload}
+                >
+                    <Upload className="size-5" aria-hidden="true" />
+                    Tải CV lên
+                </Button>
+            }
+            benefits={[
+                {
+                    icon: Sparkles,
+                    title: 'Phân tích bằng AI',
+                    description: 'Đánh giá và gợi ý cải thiện CV',
+                },
+                {
+                    icon: GitCompareArrows,
+                    title: 'So sánh phiên bản',
+                    description: 'Tìm ra CV phù hợp nhất',
+                },
+                {
+                    icon: SlidersHorizontal,
+                    title: 'Theo dõi hiệu quả',
+                    description: 'Xem lịch sử và kết quả phân tích',
+                },
+            ]}
+        />
     );
 }
 
 function CvNoResults({ onReset }: { onReset: () => void }) {
     return (
-        <div className="flex min-h-72 flex-col items-center justify-center px-4 text-center">
-            <Search className="size-8 text-slate-300" aria-hidden="true" />
-            <h2 className="mt-4 text-lg font-extrabold text-slate-950">
-                Không tìm thấy CV phù hợp
-            </h2>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-                Hãy thử từ khóa hoặc trạng thái khác.
-            </p>
-            <Button className="mt-5" variant="outline" onClick={onReset}>
-                Xóa bộ lọc
-            </Button>
-        </div>
+        <DataState
+            variant="no-results"
+            size="compact"
+            title="Không tìm thấy CV phù hợp"
+            description="Hãy thử từ khóa hoặc trạng thái khác."
+            illustrationTestId="cv-no-results-illustration"
+            className="xl:min-h-0 xl:flex-1"
+            action={
+                <Button variant="outline" onClick={onReset}>
+                    Xóa bộ lọc
+                </Button>
+            }
+        />
     );
 }
 
-function CvListError({ onRetry }: { error: ApiError; onRetry: () => void }) {
+function CvListError({ onRetry }: { onRetry: () => void }) {
     return (
-        <div className="flex min-h-72 flex-col items-center justify-center px-4 text-center">
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-                <RefreshCw className="size-6" aria-hidden="true" />
-            </span>
-            <h2 className="mt-4 text-lg font-extrabold text-slate-950">
-                Không thể tải danh sách CV
-            </h2>
-            <p className="mt-2 max-w-md text-sm leading-6 font-medium text-slate-500">
-                Đã có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.
-            </p>
-            <Button className="mt-5" variant="outline" onClick={onRetry}>
-                <RefreshCw className="size-4" aria-hidden="true" />
-                Thử lại
-            </Button>
-        </div>
+        <DataState
+            variant="error"
+            size="compact"
+            title="Không thể tải danh sách CV"
+            description="Đã có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại."
+            action={
+                <Button variant="outline" onClick={onRetry}>
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                    Thử lại
+                </Button>
+            }
+        />
     );
 }

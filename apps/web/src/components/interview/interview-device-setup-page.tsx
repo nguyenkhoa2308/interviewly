@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { Button } from '@/components/ui/button';
 import {
     useInterview,
@@ -223,18 +224,12 @@ export function InterviewDeviceSetupPage({ id }: { id: string }) {
                     { label: 'Kiểm tra thiết bị' },
                 ]}
             />
-            <header className="mt-6 max-w-3xl">
-                <p className="text-primary text-xs font-black tracking-[0.16em] uppercase">
-                    Chuẩn bị trước phiên
-                </p>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                    Kiểm tra thiết bị
-                </h1>
-                <p className="mt-2 text-base leading-7 text-slate-600">
-                    Xác nhận micro và âm thanh hoạt động trước khi vào phòng.
-                    Bạn luôn có thể dùng chế độ văn bản.
-                </p>
-            </header>
+            <AppPageHeader
+                eyebrow="Chuẩn bị trước phiên"
+                title="Kiểm tra thiết bị"
+                description="Xác nhận micro và âm thanh hoạt động trước khi vào phòng. Bạn luôn có thể dùng chế độ văn bản."
+                className="mt-6"
+            />
 
             <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_55px_rgba(68,49,126,0.07)]">

@@ -4,6 +4,7 @@ import { Pencil, Save, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { ErrorState } from '@/components/common/error-state';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { ProfileEditor } from '@/components/profile/profile-editor';
 import ProfileOverview from '@/components/profile/profile-overview';
 import { Button } from '@/components/ui/button';
@@ -43,56 +44,53 @@ export function ProfilePageContent() {
     return (
         <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
             <div className="space-y-5">
-                <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="max-w-2xl">
-                        <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
-                            Hồ sơ cá nhân
-                        </p>
-                        <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                            Hồ sơ của bạn
-                        </h1>
-                        <p className="mt-2 max-w-lg text-sm leading-6 font-medium text-slate-500 sm:text-[15px]">
-                            {isEditing
-                                ? 'Cập nhật thông tin cá nhân và hồ sơ nghề nghiệp.'
-                                : 'Quản lý thông tin cá nhân và định hướng nghề nghiệp.'}
-                        </p>
-                    </div>
-                    {isEditing ? (
-                        <div className="flex w-full gap-2.5 sm:w-auto">
+                <AppPageHeader
+                    eyebrow="Hồ sơ cá nhân"
+                    title="Hồ sơ của bạn"
+                    description={
+                        isEditing
+                            ? 'Cập nhật thông tin cá nhân và hồ sơ nghề nghiệp.'
+                            : 'Quản lý thông tin cá nhân và định hướng nghề nghiệp.'
+                    }
+                    actions={
+                        isEditing ? (
+                            <div className="flex w-full gap-2.5 sm:w-auto">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="lg"
+                                    className="hover:text-primary h-12 flex-1 rounded-lg px-5 text-sm font-bold sm:flex-none"
+                                    disabled={isSaving}
+                                    onClick={cancelEditing}
+                                >
+                                    <X className="size-4" />
+                                    Hủy
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    form="profile-edit-form"
+                                    size="lg"
+                                    className="h-12 flex-1 rounded-lg px-5 text-sm font-bold sm:flex-none"
+                                    disabled={isSaving}
+                                >
+                                    <Save className="size-4" />
+                                    {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                                </Button>
+                            </div>
+                        ) : (
                             <Button
-                                type="button"
-                                variant="outline"
+                                className="h-12 w-full rounded-lg px-5 text-sm font-bold sm:w-auto"
                                 size="lg"
-                                className="hover:text-primary h-10 flex-1 rounded-sm font-semibold sm:flex-none"
-                                disabled={isSaving}
-                                onClick={cancelEditing}
+                                disabled={profileQuery.isPending}
+                                onClick={() => setIsEditing(true)}
                             >
-                                <X className="size-4" />
-                                Hủy
+                                <Pencil className="size-4" />
+                                Chỉnh sửa hồ sơ
                             </Button>
-                            <Button
-                                type="submit"
-                                form="profile-edit-form"
-                                size="lg"
-                                className="h-10 flex-1 rounded-sm font-semibold sm:flex-none"
-                                disabled={isSaving}
-                            >
-                                <Save className="size-4" />
-                                {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                            </Button>
-                        </div>
-                    ) : (
-                        <Button
-                            className="w-full font-semibold sm:w-auto"
-                            size="lg"
-                            disabled={profileQuery.isPending}
-                            onClick={() => setIsEditing(true)}
-                        >
-                            <Pencil className="size-4" />
-                            Chỉnh sửa hồ sơ
-                        </Button>
-                    )}
-                </header>
+                        )
+                    }
+                    actionsClassName="w-full sm:w-auto"
+                />
 
                 {isEditing && profileQuery.data ? (
                     <ProfileEditor

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { DataState } from '@/components/common/data-state';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { Button } from '@/components/ui/button';
 import { SearchableMatchSource } from '@/components/cv-jd-match/searchable-match-source';
 import { MatchHistoryPagination as HistoryPagination } from '@/components/cv-jd-match/match-history-pagination';
@@ -178,33 +180,28 @@ export function CvJdMatchSetupPage() {
 
 function MatchingHero() {
     return (
-        <header className="relative isolate min-h-44 overflow-hidden py-4 sm:min-h-48 lg:min-h-52">
-            <div className="relative z-10 flex min-h-36 max-w-md flex-col items-start justify-center sm:min-h-40 md:max-w-[42%] lg:max-w-[44%] 2xl:max-w-lg">
-                <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
-                    Định hướng ứng tuyển
-                </p>
-                <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.035em] text-slate-950 sm:text-4xl">
-                    Đối chiếu CV với JD
-                </h1>
-                <p className="mt-2 max-w-lg text-sm leading-6 font-medium text-slate-500 sm:text-[15px]">
-                    So sánh hồ sơ với vị trí mục tiêu để biết mức độ phù hợp và
-                    chuẩn bị đúng trọng tâm hơn.
-                </p>
-            </div>
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 right-4 left-[52%] -z-10 hidden md:block lg:right-6 lg:left-[56%] 2xl:right-10 2xl:left-[58%]"
-            >
-                <Image
-                    src="/images/matching/matching-illustration.png"
-                    alt=""
-                    fill
-                    priority
-                    sizes="(min-width: 1280px) 44vw, (min-width: 1024px) 50vw, 58vw"
-                    className="object-contain object-right opacity-[0.6] 2xl:opacity-70"
-                />
-            </div>
-        </header>
+        <AppPageHeader
+            eyebrow="Định hướng ứng tuyển"
+            title="Đối chiếu CV với JD"
+            description="So sánh hồ sơ với vị trí mục tiêu để biết mức độ phù hợp và chuẩn bị đúng trọng tâm hơn."
+            className="min-h-36 overflow-hidden py-3 sm:min-h-40 lg:items-center"
+            contentClassName="flex min-h-32 max-w-md flex-col items-start justify-center sm:min-h-36 md:max-w-[42%] lg:max-w-[44%] 2xl:max-w-lg"
+            decoration={
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 right-4 left-[52%] -z-10 hidden md:block lg:right-6 lg:left-[56%] 2xl:right-10 2xl:left-[58%]"
+                >
+                    <Image
+                        src="/images/matching/cv-jd-matching-illustration.png"
+                        alt=""
+                        fill
+                        priority
+                        sizes="(min-width: 1280px) 44vw, (min-width: 1024px) 50vw, 58vw"
+                        className="object-contain object-right opacity-75 2xl:opacity-85"
+                    />
+                </div>
+            }
+        />
     );
 }
 
@@ -357,31 +354,38 @@ function RecentMatches({
                 </div>
             </div>
 
-            {query.data && query.data.pagination.totalPages > 1 && (
-                <HistoryPagination
-                    page={page}
-                    total={query.data.pagination.total}
-                    totalPages={query.data.pagination.totalPages}
-                    pending={query.isFetching}
-                    onPageChange={onPageChange}
-                />
-            )}
-
             {query.isPending ? (
-                <div className="h-52 animate-pulse rounded-2xl bg-slate-100" />
-            ) : query.isError ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
-                    <p className="text-sm font-bold text-red-700">
-                        Không thể tải lịch sử đối chiếu.
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="mt-3"
-                        onClick={() => query.refetch()}
-                    >
-                        Thử lại
-                    </Button>
+                <div
+                    className="h-52 animate-pulse rounded-2xl border border-slate-100 bg-white p-5"
+                    aria-label="Đang tải lịch sử đối chiếu"
+                    aria-busy="true"
+                >
+                    <div className="h-9 rounded-lg bg-slate-100" />
+                    <div className="mt-3 space-y-3">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="h-10 rounded-lg bg-slate-100"
+                            />
+                        ))}
+                    </div>
                 </div>
+            ) : query.isError ? (
+                <DataState
+                    variant="error"
+                    size="compact"
+                    title="Không thể tải lịch sử đối chiếu"
+                    description="Kết quả đã lưu vẫn an toàn. Vui lòng thử tải lại."
+                    illustrationClassName="h-28 w-40 sm:h-32 sm:w-44"
+                    action={
+                        <Button
+                            variant="outline"
+                            onClick={() => query.refetch()}
+                        >
+                            Thử lại
+                        </Button>
+                    }
+                />
             ) : query.data?.items.length ? (
                 <>
                     <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_10px_32px_rgba(43,35,76,0.05)] md:block">
@@ -418,14 +422,23 @@ function RecentMatches({
                     </div>
                 </>
             ) : (
-                <div className="rounded-2xl border border-dashed border-violet-200 bg-white p-8 text-center">
-                    <p className="font-extrabold text-slate-900">
-                        Chưa có lần đối chiếu nào
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Chọn CV và JD phía trên để tạo kết quả đầu tiên.
-                    </p>
-                </div>
+                <DataState
+                    variant="empty"
+                    size="compact"
+                    title="Chưa có lần đối chiếu nào"
+                    description="Chọn CV và JD phía trên để tạo kết quả đầu tiên."
+                    illustrationClassName="h-28 w-40 sm:h-32 sm:w-44"
+                />
+            )}
+
+            {query.data && query.data.pagination.total > 0 && (
+                <HistoryPagination
+                    page={page}
+                    total={query.data.pagination.total}
+                    totalPages={query.data.pagination.totalPages}
+                    pending={query.isFetching}
+                    onPageChange={onPageChange}
+                />
             )}
         </section>
     );

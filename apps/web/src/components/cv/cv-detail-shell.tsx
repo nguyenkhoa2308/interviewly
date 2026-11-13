@@ -152,7 +152,10 @@ function CvDetailView({
         <div className="mt-4 min-w-0 space-y-6">
             <header className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-extrabold tracking-[-0.025em] break-words text-slate-950 sm:text-[32px]">
+                    <p className="text-primary text-[13px] leading-4 font-black tracking-widest uppercase">
+                        Chi tiết CV
+                    </p>
+                    <h1 className="mt-2 text-3xl leading-tight font-black tracking-tight break-words text-slate-950 sm:text-4xl">
                         {cv.name}
                     </h1>
                     <p className="mt-1 text-sm font-bold [overflow-wrap:anywhere] text-slate-500">
@@ -186,7 +189,7 @@ function CvDetailView({
                                 ? 'destructive'
                                 : 'outline'
                         }
-                        className="rounded-sm !p-4 font-semibold"
+                        className="h-12 !rounded-lg px-5 text-sm font-extrabold"
                         onClick={onVersions}
                     >
                         {cv.processingStatus === 'FAILED' ? (
@@ -208,7 +211,7 @@ function CvDetailView({
                     </Button>
                     <Button
                         type="button"
-                        className="min-w-0 shrink-0 rounded-sm !p-4"
+                        className="h-12 min-w-0 shrink-0 !rounded-lg px-5 text-sm font-extrabold"
                         disabled={
                             cv.processingStatus !== 'READY' ||
                             !cv.extractedText?.trim() ||

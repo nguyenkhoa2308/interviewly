@@ -1,6 +1,7 @@
 'use client';
 
 import { ErrorState } from '@/components/common/error-state';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { AccountSecuritySettings } from '@/components/settings/sections/account-security-settings';
 import { DangerZoneSettings } from '@/components/settings/sections/danger-zone-settings';
 import { GeneralSettings } from '@/components/settings/sections/general-settings';
@@ -58,20 +59,12 @@ export function SettingsPage() {
 function SettingsPageFrame({ children }: { children: React.ReactNode }) {
     return (
         <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-            <header className="mb-5">
-                <div className="max-w-2xl">
-                    <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase">
-                        Quản lý tài khoản
-                    </p>
-                    <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                        Cài đặt
-                    </h1>
-                    <p className="mt-2 max-w-lg text-sm leading-6 font-medium text-slate-500 sm:text-[15px]">
-                        Quản lý trải nghiệm Interviewly và các thiết lập tài
-                        khoản của bạn.
-                    </p>
-                </div>
-            </header>
+            <AppPageHeader
+                className="mb-5"
+                eyebrow="Quản lý tài khoản"
+                title="Cài đặt"
+                description="Quản lý trải nghiệm Interviewly và các thiết lập tài khoản của bạn."
+            />
             <div className="space-y-5">{children}</div>
         </div>
     );

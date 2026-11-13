@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner';
 
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { InterviewWizardStepper } from '@/components/interview/interview-wizard-stepper';
 import { Button } from '@/components/ui/button';
 import { getInterviewTypeLabel } from '@/constants/interview-options';
@@ -66,14 +67,12 @@ export function InterviewPlanReviewPage({ id }: { id: string }) {
                     },
                 ]}
             />
-            <header className="mt-6">
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                    Tạo buổi phỏng vấn mới
-                </h1>
-                <p className="mt-2 text-sm font-medium text-slate-500 sm:text-base">
-                    Xem lại cấu hình và kế hoạch do AI tạo trước khi bắt đầu.
-                </p>
-            </header>
+            <AppPageHeader
+                eyebrow="Xem lại kế hoạch"
+                title="Tạo buổi phỏng vấn mới"
+                description="Xem lại cấu hình và kế hoạch do AI tạo trước khi bắt đầu."
+                className="mt-6"
+            />
             <InterviewWizardStepper current={3} />
 
             {data ? (

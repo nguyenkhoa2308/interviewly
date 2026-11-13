@@ -6,6 +6,15 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
+const subscribeToBrowserEnvironment = () => () => undefined;
+
+function getIsAppleMobileSnapshot() {
+    return (
+        /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+}
+
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
     return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -62,16 +71,14 @@ function DialogContent({
         top: number;
         height: number;
     } | null>(null);
-    const [isAppleMobile, setIsAppleMobile] = React.useState(false);
+    const isAppleMobile = React.useSyncExternalStore(
+        subscribeToBrowserEnvironment,
+        getIsAppleMobileSnapshot,
+        () => false,
+    );
 
     React.useEffect(() => {
         if (mobileVariant !== 'bottom-sheet') return;
-
-        const appleMobile =
-            /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-            (navigator.platform === 'MacIntel' &&
-                navigator.maxTouchPoints > 1);
-        setIsAppleMobile(appleMobile);
 
         const viewport = window.visualViewport;
         const syncViewport = () => {
@@ -217,4 +224,3 @@ export {
     DialogTitle,
     DialogTrigger,
 };
-

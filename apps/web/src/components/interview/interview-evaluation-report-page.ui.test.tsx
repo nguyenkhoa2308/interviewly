@@ -42,7 +42,8 @@ vi.mock('@/hooks/interview/use-interviews', () => ({
         },
         isPending: false,
         isError: false,
-    }),    useInterviewTranscript: () => ({
+    }),
+    useInterviewTranscript: () => ({
         data: { turns: [] },
         isPending: false,
         isError: false,
@@ -322,6 +323,48 @@ describe('InterviewEvaluationReportPage', () => {
             screen.queryByRole('tab', { name: 'Giải thích & kiến thức' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Microtask queue')).not.toBeInTheDocument();
+    });
+
+    it('selects a question from the drawer and restores the review anchor', async () => {
+        const user = userEvent.setup();
+        const scrollTo = vi
+            .spyOn(window, 'scrollTo')
+            .mockImplementation(() => undefined);
+        const secondQuestion = 'How do you handle an API error?';
+        response = evaluation({
+            report: {
+                ...report,
+                answerReviews: [
+                    report.answerReviews[0],
+                    {
+                        ...report.answerReviews[0],
+                        turnId: '55555555-5555-4555-8555-555555555555',
+                        questionText: secondQuestion,
+                        competencyKey: 'api-integration',
+                    },
+                ],
+            },
+        });
+        render(<InterviewEvaluationReportPage id="interview-id" />);
+
+        await user.click(
+            screen.getByRole('button', { name: /Danh sách câu hỏi/i }),
+        );
+        await user.click(
+            screen.getByRole('button', {
+                name: /How do you handle an API error\?/i,
+            }),
+        );
+
+        expect(
+            screen.getByRole('heading', { name: secondQuestion }),
+        ).toBeInTheDocument();
+        await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+        expect(scrollTo).toHaveBeenLastCalledWith({
+            top: expect.any(Number),
+            behavior: 'auto',
+        });
+        scrollTo.mockRestore();
     });
 
     it('groups by the authoritative question type and keeps legacy answer tabs', () => {

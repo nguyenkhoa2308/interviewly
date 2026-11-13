@@ -9,17 +9,32 @@ import {
     CalendarDays,
     Check,
     CheckCircle2,
+    CircleDashed,
+    CirclePlay,
+    ClipboardList,
     Clock3,
-    FileText,
+    FilePenLine,
+    Filter,
     History,
+    Info,
+    Layers3,
     MoreHorizontal,
     Plus,
     Search,
+    Star,
     SlidersHorizontal,
     Trash2,
     X,
+    XCircle,
 } from 'lucide-react';
 
+import {
+    DataState,
+    EmptyDataState,
+    type DataStateBenefit,
+    type DataStateVariant,
+} from '@/components/common/data-state';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -29,6 +44,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { ListPagination } from '@/components/ui/list-pagination';
 import {
     Dialog,
     DialogClose,
@@ -68,8 +84,9 @@ const statusClasses: Record<InterviewStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     PLANNING: 'bg-amber-50 text-amber-700',
     READY: 'bg-sky-50 text-sky-700',
-    IN_PROGRESS: 'bg-violet-50 text-violet-700',
-    COMPLETED: 'bg-emerald-50 text-emerald-700',
+    IN_PROGRESS: 'bg-primary/10 text-primary',
+    COMPLETED:
+        'bg-green-50 text-green-600 shadow-[inset_0_0_0_1px_rgba(34,197,94,.08)]',
     CANCELLED: 'bg-rose-50 text-rose-700',
 };
 const levelLabels: Record<string, string> = {
@@ -108,6 +125,8 @@ const sortOptions: string[][] = [
     ['LOWEST_SCORE', 'Điểm thấp nhất'],
 ];
 
+const PAGE_SIZE = 6;
+
 export function InterviewManagementPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -129,7 +148,7 @@ export function InterviewManagementPage() {
     const filters = useMemo(
         () => ({
             page,
-            limit: 9,
+            limit: PAGE_SIZE,
             search: debouncedSearch || undefined,
             status: status === 'ALL' ? undefined : status,
             level: level === 'ALL' ? undefined : level,
@@ -153,7 +172,8 @@ export function InterviewManagementPage() {
         Number(level !== 'ALL') +
         Number(interviewType !== 'ALL') +
         Number(sort !== 'RECENT');
-
+    const items = query.data?.items ?? [];
+    const pagination = query.data?.pagination;
     function resetFilters() {
         setSearch('');
         setStatus('ALL');
@@ -164,43 +184,51 @@ export function InterviewManagementPage() {
     }
 
     return (
-        <main className="mx-auto w-full max-w-[1600px] p-5 sm:p-8">
-            <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <p className="text-primary text-xs font-extrabold tracking-[.18em] uppercase">
-                        Lịch sử luyện tập
-                    </p>
-                    <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                        Phỏng vấn của bạn
-                    </h1>
-                    <p className="mt-2 max-w-2xl text-slate-500">
-                        Tiếp tục phiên còn dang dở, xem lại câu trả lời và theo
-                        dõi kết quả đã được đánh giá.
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        asChild
-                        variant="outline"
-                        className="h-11 font-bold"
-                    >
-                        <Link href="/interviews/progress">
-                            <BarChart3 className="size-4" />
-                            Xem tiến bộ
-                        </Link>
-                    </Button>
-                    <Button asChild className="h-11 px-5 font-bold">
-                        <Link href="/interviews/new">
-                            <Plus className="size-4" />
-                            Tạo phỏng vấn
-                        </Link>
-                    </Button>
-                </div>
-            </header>
+        <main className="relative isolate mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1600px] px-5 pt-7 pb-24 sm:px-7 sm:pt-8 sm:pb-28 xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-0 xl:flex-col xl:overflow-hidden xl:px-6 xl:pt-7 xl:pb-6">
+            <svg
+                className="text-primary pointer-events-none absolute right-0 bottom-0 -z-10 h-40 w-[55%]"
+                viewBox="0 0 1000 160"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+            >
+                <path
+                    d="M0 160c87-19 130-66 242-69 122-4 181 42 294 36 83-5 112-70 221-78 104-8 137 52 179 68 20 8 41 11 64 13v30H0Z"
+                    fill="currentColor"
+                    opacity="0.055"
+                />
+            </svg>
+            <AppPageHeader
+                eyebrow="Lịch sử luyện tập"
+                title="Phỏng vấn của bạn"
+                description="Tiếp tục phiên còn dang dở, xem lại câu trả lời và theo dõi kết quả đã được đánh giá."
+                actions={
+                    <>
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="h-12 !rounded-lg px-5 text-sm font-extrabold"
+                        >
+                            <Link href="/interviews/progress">
+                                <BarChart3 className="size-5" />
+                                Xem tiến bộ
+                            </Link>
+                        </Button>
+                        <Button
+                            asChild
+                            className="h-12 !rounded-lg px-5 text-sm font-bold shadow-[0_8px_20px_color-mix(in_srgb,var(--primary)_18%,transparent)]"
+                        >
+                            <Link href="/interviews/new">
+                                <Plus className="size-4" strokeWidth={3} />
+                                Tạo phỏng vấn
+                            </Link>
+                        </Button>
+                    </>
+                }
+            />
 
             <section
                 aria-label="Bộ lọc lịch sử phỏng vấn"
-                className="mt-7 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(69,56,120,.04)]"
+                className="border-primary/15 mt-6 shrink-0 rounded-2xl border bg-white p-2 shadow-[0_8px_24px_rgba(73,54,128,.045)] xl:mt-5"
             >
                 <div className="flex gap-2 sm:hidden">
                     <div className="relative min-w-0 flex-1">
@@ -214,8 +242,16 @@ export function InterviewManagementPage() {
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Tìm vai trò, CV, JD..."
                             aria-label="Tìm kiếm lịch sử phỏng vấn"
-                            className="h-11 pl-10"
+                            className="h-11 pr-10 pl-10 [&::-webkit-search-cancel-button]:appearance-none"
                         />
+                        {search && (
+                            <SearchClearButton
+                                onClear={() => {
+                                    setSearch('');
+                                    setPage(1);
+                                }}
+                            />
+                        )}
                     </div>
                     <Button
                         type="button"
@@ -274,10 +310,10 @@ export function InterviewManagementPage() {
                         )}
                     </div>
                 )}
-                <div className="hidden gap-3 sm:grid xl:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(150px,auto))]">
-                    <div className="relative">
+                <div className="hidden gap-2.5 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(320px,1fr)_190px_180px_170px_180px]">
+                    <div className="relative sm:col-span-2 lg:col-span-2 xl:col-span-1">
                         <Search
-                            className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400"
+                            className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-500"
                             aria-hidden="true"
                         />
                         <Input
@@ -286,11 +322,20 @@ export function InterviewManagementPage() {
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Tìm vai trò, CV, JD hoặc công ty..."
                             aria-label="Tìm kiếm lịch sử phỏng vấn"
-                            className="h-11 pl-10"
+                            className="border-primary/15 h-12 rounded-xl bg-white pr-11 pl-11 text-sm font-bold text-slate-900 shadow-none transition-colors placeholder:text-slate-500 hover:border-slate-300 focus-visible:bg-white [&::-webkit-search-cancel-button]:appearance-none"
                         />
+                        {search && (
+                            <SearchClearButton
+                                onClear={() => {
+                                    setSearch('');
+                                    setPage(1);
+                                }}
+                            />
+                        )}
                     </div>
                     <FilterSelect
                         label="Trạng thái"
+                        icon={Filter}
                         value={status}
                         onChange={(value) => {
                             setStatus(value as typeof status);
@@ -303,6 +348,7 @@ export function InterviewManagementPage() {
                     />
                     <FilterSelect
                         label="Cấp độ"
+                        icon={BarChart3}
                         value={level}
                         onChange={(value) => {
                             setLevel(value);
@@ -318,6 +364,7 @@ export function InterviewManagementPage() {
                     />
                     <FilterSelect
                         label="Loại phỏng vấn"
+                        icon={Layers3}
                         value={interviewType}
                         onChange={(value) => {
                             setInterviewType(value);
@@ -333,6 +380,7 @@ export function InterviewManagementPage() {
                     />
                     <FilterSelect
                         label="Sắp xếp"
+                        icon={CalendarDays}
                         value={sort}
                         onChange={(value) => {
                             setSort(value as InterviewHistorySort);
@@ -425,7 +473,7 @@ export function InterviewManagementPage() {
                         </Button>
                         <DialogClose asChild>
                             <Button type="button" className="h-11 font-bold">
-                                Xem {query.data?.pagination.total ?? 0} kết quả
+                                Xem {pagination?.total ?? 0} kết quả
                             </Button>
                         </DialogClose>
                     </DialogFooter>
@@ -435,6 +483,7 @@ export function InterviewManagementPage() {
                 <HistorySkeleton />
             ) : query.isError ? (
                 <StateCard
+                    variant="error"
                     title="Không thể tải lịch sử phỏng vấn"
                     description="Dữ liệu của bạn vẫn an toàn. Hãy thử tải lại trang."
                     action={
@@ -443,6 +492,36 @@ export function InterviewManagementPage() {
                 />
             ) : query.data.items.length === 0 ? (
                 <StateCard
+                    variant={hasFilters ? 'no-results' : 'empty'}
+                    illustrationSrc={
+                        hasFilters
+                            ? '/images/cvs/cv-no-results.png'
+                            : '/images/interview/interview-empty-state.webp'
+                    }
+                    benefits={
+                        hasFilters
+                            ? undefined
+                            : [
+                                  {
+                                      icon: CirclePlay,
+                                      title: 'Luyện tập thực tế',
+                                      description:
+                                          'Phỏng vấn theo CV và vị trí mục tiêu',
+                                  },
+                                  {
+                                      icon: BarChart3,
+                                      title: 'Đánh giá bằng AI',
+                                      description:
+                                          'Nhận phản hồi dựa trên bằng chứng',
+                                  },
+                                  {
+                                      icon: History,
+                                      title: 'Theo dõi tiến bộ',
+                                      description:
+                                          'Xem lại câu trả lời và kết quả',
+                                  },
+                              ]
+                    }
                     title={
                         hasFilters
                             ? 'Không tìm thấy buổi phỏng vấn phù hợp'
@@ -470,51 +549,22 @@ export function InterviewManagementPage() {
             ) : (
                 <>
                     <section
-                        className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3"
+                        className="mt-5 grid gap-3.5 md:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-3 xl:grid-rows-2"
                         aria-label="Danh sách lịch sử phỏng vấn"
                     >
-                        {query.data.items.map((item) => (
+                        {items.map((item) => (
                             <HistoryCard key={item.id} item={item} />
                         ))}
                     </section>
-                    <footer className="mt-7 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm font-medium text-slate-500">
-                            Hiển thị {query.data.items.length} trong{' '}
-                            {query.data.pagination.total} buổi phỏng vấn
-                        </p>
-                        {query.data.pagination.totalPages > 1 && (
-                            <div
-                                className="flex items-center gap-2"
-                                aria-label="Phân trang"
-                            >
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={page === 1}
-                                    onClick={() =>
-                                        setPage((value) => value - 1)
-                                    }
-                                >
-                                    Trước
-                                </Button>
-                                <span className="px-2 text-sm font-bold tabular-nums">
-                                    {page}/{query.data.pagination.totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={
-                                        page >= query.data.pagination.totalPages
-                                    }
-                                    onClick={() =>
-                                        setPage((value) => value + 1)
-                                    }
-                                >
-                                    Sau
-                                </Button>
-                            </div>
-                        )}
-                    </footer>
+                    <ListPagination
+                        page={page}
+                        pageSize={PAGE_SIZE}
+                        total={pagination?.total ?? 0}
+                        totalPages={pagination?.totalPages}
+                        itemLabel="buổi phỏng vấn"
+                        onPageChange={setPage}
+                        className="pb-2 xl:mt-3 xl:pb-0"
+                    />
                 </>
             )}
         </main>
@@ -525,43 +575,48 @@ function HistoryCard({ item }: { item: InterviewHistoryItem }) {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const remove = useDeleteInterview();
     const action = primaryAction(item);
+    const ActionIcon = action.icon;
     const company = item.jobDescription.company
         ? ' tại ' + item.jobDescription.company
         : '';
     return (
         <>
-            <article className="flex min-h-72 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_36px_rgba(52,41,94,.05)] sm:p-5">
+            <article className="group border-primary/15 hover:border-primary/30 flex min-h-[260px] min-w-0 flex-col rounded-2xl border bg-[linear-gradient(145deg,#fff_70%,#fdfcff_100%)] p-5 shadow-[0_10px_28px_rgba(75,53,145,.07)] transition-[border-color,box-shadow] duration-200 hover:shadow-[0_14px_34px_rgba(75,53,145,.10)] xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[auto_auto_auto_auto] xl:content-between xl:p-4 2xl:p-5">
                 <div className="flex items-start gap-3">
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                    <span className="bg-primary/10 text-primary grid size-12 shrink-0 place-items-center rounded-xl shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_7%,transparent)]">
                         <BriefcaseBusiness
-                            className="size-5"
-                            strokeWidth={2.2}
+                            className="size-5.5"
+                            strokeWidth={2.25}
                         />
                     </span>
                     <div className="min-w-0 flex-1">
-                        <h2 className="line-clamp-2 text-base leading-6 font-extrabold break-words text-slate-950 sm:text-lg">
+                        <h2 className="line-clamp-2 text-base leading-5 font-extrabold tracking-[-0.01em] break-words text-slate-950">
                             {item.targetRole}
                         </h2>
-                        <p className="mt-0.5 truncate text-sm text-slate-500">
-                            {item.targetLevel ?? 'Chưa xác định'} ·{' '}
-                            {interviewTypeLabel(item.interviewType)}
+                        <p className="mt-0.5 truncate text-sm font-semibold text-slate-500">
+                            {levelLabels[item.targetLevel ?? ''] ??
+                                item.targetLevel ??
+                                'Chưa xác định'}{' '}
+                            · {interviewTypeLabel(item.interviewType)}
                         </p>
                         <span
                             className={
-                                'mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold sm:hidden ' +
+                                'mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-extrabold sm:hidden ' +
                                 statusClasses[item.status]
                             }
                         >
+                            <InterviewStatusIcon status={item.status} />
                             {statusLabels[item.status]}
                         </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                         <span
                             className={
-                                'hidden rounded-full px-2.5 py-1 text-xs font-bold sm:inline-flex ' +
+                                'hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-extrabold sm:inline-flex ' +
                                 statusClasses[item.status]
                             }
                         >
+                            <InterviewStatusIcon status={item.status} />
                             {statusLabels[item.status]}
                         </span>
                         <DropdownMenu>
@@ -592,7 +647,7 @@ function HistoryCard({ item }: { item: InterviewHistoryItem }) {
                         </DropdownMenu>
                     </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-3 min-[360px]:grid-cols-2 sm:mt-5">
+                <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-[linear-gradient(135deg,#f8f8fc_0%,#f5f3fb_100%)] p-3.5 min-[360px]:grid-cols-2 min-[360px]:divide-x min-[360px]:divide-[#ded9ee]">
                     <Metric
                         label="Thời điểm"
                         value={formatDate(
@@ -605,43 +660,53 @@ function HistoryCard({ item }: { item: InterviewHistoryItem }) {
                     <Metric
                         label="Kết quả"
                         value={evaluationLabel(item)}
-                        icon={
-                            item.evaluation?.status === 'COMPLETED'
-                                ? CheckCircle2
-                                : Clock3
+                        iconWithLabel
+                        icon={ClipboardList}
+                        valueClassName={
+                            item.evaluation?.status === 'COMPLETED' &&
+                            item.evaluation.overallScore !== null
+                                ? undefined
+                                : evaluationValueClass(item)
+                        }
+                        score={
+                            item.evaluation?.status === 'COMPLETED' &&
+                            item.evaluation.overallScore !== null
+                        }
+                        mutedBadge={
+                            !item.evaluation ||
+                            (item.evaluation.status === 'COMPLETED' &&
+                                item.evaluation.overallScore === null)
                         }
                     />
                 </div>
-                <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
-                    {item.jobDescription.title + company}
-                </p>
-                <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 pt-4 min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:items-center">
-                    {item.session && (
-                        <Button
-                            asChild
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-center font-bold min-[360px]:w-auto"
-                        >
-                            <Link
-                                href={
-                                    '/interviews/' +
-                                    item.id +
-                                    '/report#question-review'
-                                }
-                            >
-                                <FileText className="size-4" />
-                                Xem lại câu trả lời
-                            </Link>
-                        </Button>
-                    )}
-
+                <div className="mt-4 flex min-w-0 flex-wrap items-center justify-start gap-x-5 gap-y-2 text-[13px] font-bold text-[#596987]">
+                    <p className="flex max-w-[65%] min-w-0 items-center gap-1.5 font-bold">
+                        <Layers3
+                            className="size-4 shrink-0 text-[#66769a]"
+                            aria-hidden="true"
+                            strokeWidth={2.5}
+                        />
+                        <span className="truncate">
+                            {item.jobDescription.title + company}
+                        </span>
+                    </p>
+                    <p className="flex shrink-0 items-center gap-1.5 border-l border-[#ded9ee] pl-5 text-[13px] font-bold text-[#596987]">
+                        <Clock3
+                            className="size-4 text-[#66769a]"
+                            aria-hidden="true"
+                            strokeWidth={2.5}
+                        />
+                        {item.durationMinutes} phút
+                    </p>
+                </div>
+                <div className="mt-auto flex justify-end pt-4 xl:mt-0">
                     <Button
                         asChild
                         size="sm"
-                        className="w-full justify-center font-bold min-[360px]:ml-auto min-[360px]:w-auto min-[360px]:min-w-32"
+                        className="from-primary via-primary hover:from-primary/95 h-10 w-full justify-center gap-2 !rounded-lg bg-gradient-to-r to-[#8258ff] px-5 text-sm font-bold shadow-[0_8px_20px_color-mix(in_srgb,var(--primary)_24%,transparent)] hover:to-[#7650ec] min-[360px]:w-[62%]"
                     >
                         <Link href={action.href}>
+                            <ActionIcon className="size-4" aria-hidden="true" />
                             {action.label}
                             <ArrowRight className="size-4" />
                         </Link>
@@ -670,9 +735,14 @@ function primaryAction(item: InterviewHistoryItem) {
         return {
             label: 'Tiếp tục',
             href: '/interviews/' + item.id + '/session',
+            icon: CirclePlay,
         };
     if (item.status === 'READY')
-        return { label: 'Bắt đầu', href: '/interviews/' + item.id };
+        return {
+            label: 'Bắt đầu',
+            href: '/interviews/' + item.id,
+            icon: CirclePlay,
+        };
     if (item.status === 'COMPLETED')
         return {
             label:
@@ -680,8 +750,13 @@ function primaryAction(item: InterviewHistoryItem) {
                     ? 'Xem báo cáo'
                     : 'Xem đánh giá',
             href: '/interviews/' + item.id + '/report',
+            icon: BarChart3,
         };
-    return { label: 'Xem chi tiết', href: '/interviews/' + item.id };
+    return {
+        label: 'Xem chi tiết',
+        href: '/interviews/' + item.id,
+        icon: History,
+    };
 }
 
 function evaluationLabel(item: InterviewHistoryItem) {
@@ -690,7 +765,7 @@ function evaluationLabel(item: InterviewHistoryItem) {
         item.evaluation.status === 'COMPLETED' &&
         item.evaluation.overallScore !== null
     )
-        return item.evaluation.overallScore.toFixed(1) + '/10';
+        return item.evaluation.overallScore.toFixed(1) + ' / 10';
     const labels = {
         PENDING: 'Đang chờ',
         PROCESSING: 'Đang chấm',
@@ -698,6 +773,33 @@ function evaluationLabel(item: InterviewHistoryItem) {
         FAILED: 'Đánh giá lỗi',
     };
     return labels[item.evaluation.status];
+}
+
+function evaluationValueClass(item: InterviewHistoryItem) {
+    if (!item.evaluation) return 'text-slate-600';
+    if (item.evaluation.status === 'FAILED') return 'text-rose-600';
+    if (item.evaluation.status !== 'COMPLETED') return 'text-amber-700';
+    const score = item.evaluation.overallScore;
+    if (score === null) return 'text-slate-600';
+    if (score >= 7) return 'text-emerald-700';
+    if (score >= 5) return 'text-amber-700';
+    return 'text-rose-600';
+}
+
+function InterviewStatusIcon({ status }: { status: InterviewStatus }) {
+    const Icon =
+        status === 'COMPLETED'
+            ? CheckCircle2
+            : status === 'IN_PROGRESS'
+              ? CirclePlay
+              : status === 'DRAFT'
+                ? FilePenLine
+                : status === 'CANCELLED'
+                  ? XCircle
+                  : status === 'PLANNING'
+                    ? CircleDashed
+                    : CheckCircle2;
+    return <Icon className="size-3.5" strokeWidth={2.5} aria-hidden="true" />;
 }
 
 function FilterChip({
@@ -797,19 +899,30 @@ function MobileFilterOptions({
 }
 function FilterSelect({
     label,
+    icon: Icon,
     value,
     onChange,
     options,
 }: {
     label: string;
+    icon: typeof CalendarDays;
     value: string;
     onChange: (value: string) => void;
     options: string[][];
 }) {
     return (
         <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="h-11 min-w-0 bg-white" aria-label={label}>
-                <SelectValue />
+            <SelectTrigger
+                className="border-primary/15 h-12 min-w-0 rounded-xl bg-white px-4 text-sm font-bold text-slate-900 shadow-none transition-colors hover:border-slate-300 hover:bg-white [&>svg:last-child]:size-4 [&>svg:last-child]:text-slate-700"
+                aria-label={label}
+            >
+                <span className="flex shrink-0 items-center gap-2 leading-none whitespace-nowrap">
+                    <Icon
+                        className="size-4.5 shrink-0 text-slate-500"
+                        aria-hidden="true"
+                    />
+                    <SelectValue />
+                </span>
             </SelectTrigger>
             <SelectContent>
                 {options.map(([optionValue, optionLabel]) => (
@@ -822,35 +935,94 @@ function FilterSelect({
     );
 }
 
+function SearchClearButton({ onClear }: { onClear: () => void }) {
+    return (
+        <button
+            type="button"
+            className="hover:text-destructive focus-visible:ring-destructive/20 absolute top-1/2 right-2 grid size-8 -translate-y-1/2 cursor-pointer place-items-center rounded-md text-slate-400 transition-colors hover:bg-rose-50 focus-visible:ring-2 focus-visible:outline-none"
+            aria-label="Xóa nội dung tìm kiếm"
+            onClick={onClear}
+        >
+            <X className="size-4" strokeWidth={3} aria-hidden="true" />
+        </button>
+    );
+}
+
 function Metric({
     label,
     value,
     icon: Icon,
+    valueClassName,
+    score = false,
+    mutedBadge = false,
+    iconWithLabel = false,
 }: {
     label: string;
     value: string;
     icon: typeof CalendarDays;
+    valueClassName?: string;
+    score?: boolean;
+    mutedBadge?: boolean;
+    iconWithLabel?: boolean;
 }) {
     return (
-        <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-                <Icon className="size-3.5" />
-                {label}
-            </p>
-            <p className="mt-1 truncate text-sm font-extrabold text-slate-800">
-                {value}
-            </p>
+        <div className="min-w-0 min-[360px]:px-1 first:min-[360px]:pl-0 last:min-[360px]:pl-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+                {!iconWithLabel && (
+                    <Icon
+                        className="size-4.5 shrink-0 text-[#667694]"
+                        strokeWidth={2.1}
+                        aria-hidden="true"
+                    />
+                )}
+                <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-xs leading-4 font-bold text-[#667694]">
+                        {iconWithLabel && (
+                            <Icon
+                                className="size-4 shrink-0 text-[#667694]"
+                                strokeWidth={2.1}
+                                aria-hidden="true"
+                            />
+                        )}
+                        {label}
+                    </p>
+                    <p
+                        className={
+                            'mt-0.5 flex min-h-6 w-fit max-w-full items-center gap-1.5 truncate text-sm font-extrabold ' +
+                            (score
+                                ? 'rounded-lg bg-[#fff2c9] px-2.5 text-[#9a5a00] shadow-[inset_0_0_0_1px_rgba(245,158,11,.05)]'
+                                : mutedBadge
+                                  ? 'rounded-lg bg-[#ececf3] px-2.5 text-slate-800 shadow-[inset_0_0_0_1px_rgba(100,116,139,.04)]'
+                                  : (valueClassName ?? 'text-slate-900'))
+                        }
+                    >
+                        {score && (
+                            <Star
+                                className="size-4 fill-amber-400 text-amber-400"
+                                aria-hidden="true"
+                            />
+                        )}
+                        {mutedBadge && (
+                            <Info
+                                className="size-4 text-[#667085]"
+                                aria-hidden="true"
+                            />
+                        )}
+                        {value}
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
 
 function HistorySkeleton() {
     return (
-        <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div className="mt-5 grid gap-3.5 md:grid-cols-2 xl:min-h-0 xl:flex-1 xl:grid-cols-3 xl:grid-rows-2">
             {Array.from({ length: 6 }, (_, index) => (
                 <div
                     key={index}
-                    className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white"
+                    className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white xl:h-full xl:min-h-0"
                 />
             ))}
         </div>
@@ -858,23 +1030,43 @@ function HistorySkeleton() {
 }
 
 function StateCard({
+    variant,
     title,
     description,
     action,
+    illustrationSrc,
+    benefits,
 }: {
+    variant: DataStateVariant;
     title: string;
     description: string;
     action: React.ReactNode;
+    illustrationSrc?: string;
+    benefits?: readonly DataStateBenefit[];
 }) {
+    if (variant === 'empty') {
+        return (
+            <EmptyDataState
+                title={title}
+                description={description}
+                action={action}
+                illustrationSrc={illustrationSrc}
+                benefits={benefits}
+            />
+        );
+    }
+
     return (
-        <section className="mt-8 rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 p-10 text-center">
-            <History className="text-primary mx-auto size-9" />
-            <h2 className="mt-4 text-lg font-extrabold">{title}</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-                {description}
-            </p>
-            <div className="mt-5">{action}</div>
-        </section>
+        <DataState
+            variant={variant}
+            size="compact"
+            title={title}
+            description={description}
+            action={action}
+            illustrationSrc={illustrationSrc}
+            benefits={benefits}
+            className="mt-5 xl:min-h-0 xl:flex-1"
+        />
     );
 }
 

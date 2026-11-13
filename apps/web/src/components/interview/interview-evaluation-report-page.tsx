@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -10,6 +11,7 @@ import {
     type CSSProperties,
     type ReactNode,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import {
     AlertTriangle,
@@ -25,6 +27,7 @@ import {
     Braces,
     Check,
     CheckCircle2,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     CircleAlert,
@@ -160,13 +163,13 @@ export function InterviewEvaluationReportPage({ id }: { id: string }) {
                     />
 
                     <div className="mt-7 max-w-[920px] lg:pr-52">
-                        <p className="text-primary text-xs font-extrabold tracking-[0.18em] uppercase sm:text-sm">
+                        <p className="text-primary text-[13px] leading-4 font-black tracking-widest uppercase">
                             Đánh giá sau phỏng vấn
                         </p>
-                        <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.03em] text-slate-950 sm:text-4xl sm:leading-tight">
+                        <h1 className="mt-2 text-3xl leading-tight font-black tracking-tight text-slate-950 sm:text-4xl">
                             Báo cáo năng lực · {title}
                         </h1>
-                        <p className="mt-3 max-w-4xl text-[15px] leading-7 font-medium text-slate-600">
+                        <p className="mt-2 max-w-2xl text-base leading-5 font-semibold text-slate-500">
                             Phân tích dựa trên câu trả lời thực tế, chuỗi câu
                             hỏi đào sâu và chuẩn năng lực của vị trí mục tiêu.
                         </p>
@@ -189,7 +192,7 @@ export function InterviewEvaluationReportPage({ id }: { id: string }) {
                         <Button
                             asChild
                             variant="outline"
-                            className="border-primary/30 text-primary hover:border-primary/45 hover:bg-primary/5 hover:text-primary h-12 min-w-52 rounded-sm bg-white/90 px-5 font-bold shadow-[0_6px_18px_rgba(51,65,85,0.06)]"
+                            className="border-primary/30 text-primary hover:border-primary/45 hover:bg-primary/5 hover:text-primary h-12 min-w-52 !rounded-lg bg-white/90 px-5 text-sm font-extrabold shadow-[0_6px_18px_rgba(51,65,85,0.06)]"
                         >
                             <Link href={`/interviews/${id}`}>
                                 <FileText className="size-4" />
@@ -199,7 +202,7 @@ export function InterviewEvaluationReportPage({ id }: { id: string }) {
                         {report && (
                             <Button
                                 type="button"
-                                className="h-12 min-w-44 rounded-sm px-5 font-bold shadow-[0_10px_24px_rgba(54,40,110,0.18)]"
+                                className="h-12 min-w-44 !rounded-lg px-5 text-sm font-extrabold shadow-[0_10px_24px_rgba(54,40,110,0.18)]"
                                 disabled={processing || reanalyze.isPending}
                                 onClick={() => setReanalyzeOpen(true)}
                             >
@@ -1902,7 +1905,7 @@ function QuestionReviewSection({
     const [topic, setTopic] = useState('ALL');
     const [drawerOpen, setDrawerOpen] = useState(false);
     const questionReviewRef = useRef<HTMLElement>(null);
-    const shouldRestoreReviewPositionRef = useRef(false);
+    const shouldFinalizeDrawerSelectionRef = useRef(false);
     const [selectedTurnId, setSelectedTurnId] = useState(
         reviews[0]?.turnId ?? '',
     );
@@ -1951,25 +1954,42 @@ function QuestionReviewSection({
         (turn) => turn.id === selectedReview?.turnId,
     );
 
+    const alignQuestionReviewToViewport = useCallback(() => {
+        const section = questionReviewRef.current;
+        if (!section) return;
+
+        const appHeaderHeight = 64;
+        const sectionGap = 12;
+        const top =
+            window.scrollY +
+            section.getBoundingClientRect().top -
+            appHeaderHeight -
+            sectionGap;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+    }, []);
+
     const openQuestion = (turnId: string, restoreReviewPosition = false) => {
         const nextReview = reviews.find((review) => review.turnId === turnId);
-        shouldRestoreReviewPositionRef.current = restoreReviewPosition;
-        setSelectedTurnId(turnId);
         const nextTabs = nextReview ? buildQuestionReviewTabs(nextReview) : [];
-        setActiveTab(nextTabs[0]?.id ?? 'ANALYSIS');
-        setDrawerOpen(false);
+        const applyQuestion = () => {
+            setSelectedTurnId(turnId);
+            setActiveTab(nextTabs[0]?.id ?? 'ANALYSIS');
+            setDrawerOpen(false);
+        };
+
+        if (!restoreReviewPosition) {
+            applyQuestion();
+            return;
+        }
+
+        shouldFinalizeDrawerSelectionRef.current = true;
+        flushSync(applyQuestion);
+        window.requestAnimationFrame(alignQuestionReviewToViewport);
     };
-    const restoreQuestionReviewPosition = () => {
-        if (!shouldRestoreReviewPositionRef.current) return;
-        shouldRestoreReviewPositionRef.current = false;
-        window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-                questionReviewRef.current?.scrollIntoView({
-                    behavior: 'auto',
-                    block: 'start',
-                });
-            });
-        });
+    const finalizeDrawerSelection = () => {
+        if (!shouldFinalizeDrawerSelectionRef.current) return;
+        shouldFinalizeDrawerSelectionRef.current = false;
+        alignQuestionReviewToViewport();
     };
     const navigateQuestion = (offset: number) => {
         const next = reviews[selectedIndex + offset];
@@ -2011,7 +2031,6 @@ function QuestionReviewSection({
 
             event.preventDefault();
             const nextTabs = buildQuestionReviewTabs(nextReview);
-            shouldRestoreReviewPositionRef.current = false;
             setSelectedTurnId(nextReview.turnId);
             setActiveTab(nextTabs[0]?.id ?? 'ANALYSIS');
         };
@@ -2162,7 +2181,7 @@ function QuestionReviewSection({
                 onTopicChange={setTopic}
                 topics={topics}
                 onSelect={(turnId) => openQuestion(turnId, true)}
-                onAfterClose={restoreQuestionReviewPosition}
+                onAfterClose={finalizeDrawerSelection}
             />
         </section>
     );
@@ -2195,6 +2214,13 @@ function QuestionListDrawer({
     onSelect: (turnId: string) => void;
     onAfterClose: () => void;
 }) {
+    const [topicsExpanded, setTopicsExpanded] = useState(false);
+    const selectedTopicLabel =
+        topic === 'ALL'
+            ? 'Tất cả chủ đề'
+            : (topics.find((item) => item.value === topic)?.label ??
+              'Tất cả chủ đề');
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -2204,49 +2230,139 @@ function QuestionListDrawer({
                     event.preventDefault();
                     onAfterClose();
                 }}
-                className="data-[state=open]:sm:slide-in-from-right data-[state=closed]:sm:slide-out-to-right flex max-h-[88dvh] max-w-xl flex-col overflow-hidden overscroll-contain p-0 sm:!top-0 sm:!right-0 sm:!bottom-0 sm:!left-auto sm:!h-dvh sm:!max-h-none sm:!w-[min(460px,100vw)] sm:!max-w-none sm:!translate-x-0 sm:!translate-y-0 sm:!rounded-none sm:!border-y-0 sm:!border-r-0 max-sm:[&>div:first-child]:overflow-hidden"
+                className="data-[state=open]:sm:slide-in-from-right data-[state=closed]:sm:slide-out-to-right flex max-h-[92dvh] max-w-xl flex-col overflow-hidden overscroll-contain p-0 max-sm:rounded-t-[1.75rem] max-sm:border-x-0 max-sm:border-b-0 sm:!top-0 sm:!right-0 sm:!bottom-0 sm:!left-auto sm:!h-dvh sm:!max-h-none sm:!w-[min(460px,100vw)] sm:!max-w-none sm:!translate-x-0 sm:!translate-y-0 sm:!rounded-none sm:!border-y-0 sm:!border-r-0 max-sm:[&>div:first-child]:overflow-hidden"
             >
-                <DialogHeader className="border-b border-slate-200 px-5 py-5 pr-14 sm:px-6">
-                    <DialogTitle>Danh sách câu hỏi</DialogTitle>
-                    <DialogDescription>
+                <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-slate-200 sm:hidden" />
+                <DialogHeader className="border-b border-slate-100 px-5 pt-4 pb-4 sm:px-6 sm:py-5 sm:pr-14">
+                    <DialogTitle className="text-center text-xl sm:text-left sm:text-lg">
+                        Danh sách câu hỏi
+                    </DialogTitle>
+                    <DialogDescription className="text-center sm:text-left">
                         Chọn nhanh câu trả lời bạn muốn xem lại.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
-                    <div className="relative">
-                        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            value={query}
-                            onChange={(event) =>
-                                onQueryChange(event.target.value)
-                            }
-                            placeholder="Tìm kiếm câu hỏi..."
-                            className="h-11 pl-9"
-                            aria-label="Tìm kiếm câu hỏi"
-                        />
+                <div className="grid gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-4 sm:bg-white sm:px-6">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_6px_18px_rgba(69,56,120,.04)] sm:contents">
+                        <div className="relative">
+                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                            <Input
+                                value={query}
+                                onChange={(event) =>
+                                    onQueryChange(event.target.value)
+                                }
+                                placeholder="Tìm kiếm câu hỏi..."
+                                className="h-11 rounded-xl border-slate-200 bg-slate-50/60 pl-9 shadow-none focus-visible:bg-white sm:rounded-md sm:bg-white"
+                                aria-label="Tìm kiếm câu hỏi"
+                            />
+                        </div>
                     </div>
-                    <Select value={topic} onValueChange={onTopicChange}>
-                        <SelectTrigger
-                            className="h-11"
-                            aria-label="Lọc câu hỏi theo chủ đề"
+                    <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_6px_18px_rgba(69,56,120,.04)] sm:hidden">
+                        <button
+                            type="button"
+                            className="focus-visible:ring-primary/30 flex min-h-11 w-full items-center gap-3 rounded-xl px-2.5 text-left focus-visible:ring-2 focus-visible:outline-none"
+                            aria-expanded={topicsExpanded}
+                            aria-controls="question-topic-options"
+                            onClick={() => setTopicsExpanded((value) => !value)}
                         >
-                            <SelectValue placeholder="Tất cả chủ đề" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Tất cả chủ đề</SelectItem>
-                            {topics.map((item) => (
-                                <SelectItem key={item.value} value={item.value}>
-                                    {item.label}
+                            <span className="bg-primary/8 text-primary grid size-8 shrink-0 place-items-center rounded-lg">
+                                <ListFilter className="size-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-semibold text-slate-400">
+                                    Chủ đề
+                                </span>
+                                <span className="block truncate text-sm font-extrabold text-slate-800">
+                                    {selectedTopicLabel}
+                                </span>
+                            </span>
+                            <ChevronDown
+                                className={cn(
+                                    'size-4 shrink-0 text-slate-400 transition-transform duration-200',
+                                    topicsExpanded && 'rotate-180',
+                                )}
+                            />
+                        </button>
+                        {topicsExpanded ? (
+                            <div
+                                id="question-topic-options"
+                                className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3"
+                                role="radiogroup"
+                                aria-label="Lọc câu hỏi theo chủ đề"
+                            >
+                                {[
+                                    { value: 'ALL', label: 'Tất cả chủ đề' },
+                                    ...topics,
+                                ].map((item) => {
+                                    const selected = item.value === topic;
+                                    return (
+                                        <button
+                                            key={item.value}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={selected}
+                                            className={cn(
+                                                'focus-visible:ring-primary/30 flex min-h-10 min-w-0 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                                                selected
+                                                    ? 'border-primary/30 bg-primary/7 text-primary'
+                                                    : 'border-slate-200 bg-white text-slate-600 active:bg-slate-50',
+                                            )}
+                                            onClick={() => {
+                                                onTopicChange(item.value);
+                                                setTopicsExpanded(false);
+                                            }}
+                                        >
+                                            <span className="line-clamp-2">
+                                                {item.label}
+                                            </span>
+                                            <span
+                                                className={cn(
+                                                    'grid size-5 shrink-0 place-items-center rounded-full border',
+                                                    selected
+                                                        ? 'border-primary bg-primary text-white'
+                                                        : 'border-slate-300 text-transparent',
+                                                )}
+                                                aria-hidden="true"
+                                            >
+                                                <Check
+                                                    className="size-3"
+                                                    strokeWidth={3}
+                                                />
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
+                    </div>
+                    <div className="hidden sm:block">
+                        <Select value={topic} onValueChange={onTopicChange}>
+                            <SelectTrigger
+                                className="h-11"
+                                aria-label="Lọc câu hỏi theo chủ đề"
+                            >
+                                <SelectValue placeholder="Tất cả chủ đề" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">
+                                    Tất cả chủ đề
                                 </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                                {topics.map((item) => (
+                                    <SelectItem
+                                        key={item.value}
+                                        value={item.value}
+                                    >
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
-                <div className="scrollbar-primary min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pt-2 pb-[max(var(--dialog-mobile-bottom-clearance,5.5rem),env(safe-area-inset-bottom))] sm:p-3">
+                <div className="scrollbar-primary min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50/80 px-4 py-4 pb-[max(var(--dialog-mobile-bottom-clearance,5.5rem),env(safe-area-inset-bottom))] sm:bg-white sm:p-3">
                     {filtered.length > 0 ? (
-                        <div className="space-y-1">
+                        <div className="space-y-2 sm:space-y-1">
                             {filtered.map((review) => {
                                 const index = reviews.findIndex(
                                     (item) => item.turnId === review.turnId,
@@ -2259,10 +2375,10 @@ function QuestionListDrawer({
                                     <button
                                         key={review.turnId}
                                         type="button"
-                                        className={`focus-visible:ring-primary/25 group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                                        className={`focus-visible:ring-primary/25 group flex w-full items-center gap-3 rounded-2xl border bg-white px-3 py-3 text-left shadow-[0_6px_18px_rgba(69,56,120,.04)] transition-colors focus-visible:ring-2 focus-visible:outline-none sm:rounded-xl sm:border-transparent sm:shadow-none ${
                                             active
-                                                ? 'bg-primary/7 ring-primary/15 ring-1'
-                                                : 'hover:bg-slate-50'
+                                                ? 'border-primary/20 bg-primary/7 ring-primary/15 ring-1'
+                                                : 'border-slate-200 hover:bg-slate-50'
                                         }`}
                                         aria-current={
                                             active ? 'true' : undefined

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JobDescriptionManagementPage } from './job-description-management-page';
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     create: vi.fn(),
     refetch: vi.fn(),
     push: vi.fn(),
+    useLatestAnalysis: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -25,13 +26,15 @@ vi.mock('@/hooks/job-description', () => ({
         mutateAsync: mocks.create,
         isPending: false,
     }),
+    useLatestJdAnalysis: mocks.useLatestAnalysis,
 }));
 
 const analyzedItem = {
     id: 'jd-1',
     title: 'Frontend Developer',
     company: 'Interviewly',
-    content: 'Xây dựng sản phẩm web hiện đại cùng đội ngũ Interviewly.',
+    content:
+        'Xây dựng sản phẩm web hiện đại cùng đội ngũ Interviewly. Ứng viên có thể làm việc tại Hà Nội và Hồ Chí Minh.',
     createdAt: '2026-09-23T00:00:00.000Z',
     updatedAt: '2026-09-23T00:00:00.000Z',
     analyses: [
@@ -40,6 +43,9 @@ const analyzedItem = {
             status: 'COMPLETED',
             detectedRole: 'Frontend Developer',
             seniority: 'Junior',
+            summary: 'Xây dựng giao diện web hiện đại.',
+            requiredSkills: ['React', 'TypeScript'],
+            preferredSkills: ['Next.js'],
             completedAt: '2026-09-23T00:00:00.000Z',
         },
     ],
@@ -57,7 +63,7 @@ function state(overrides = {}) {
     return {
         data: {
             items: [analyzedItem, plainItem],
-            pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
+            pagination: { page: 1, limit: 6, total: 2, totalPages: 1 },
         },
         isPending: false,
         isFetching: false,
@@ -73,6 +79,26 @@ describe('JobDescriptionManagementPage', () => {
         mocks.useList.mockReturnValue(state());
         mocks.remove.mockResolvedValue({ id: 'jd-1', deleted: true });
         mocks.create.mockResolvedValue({ id: 'jd-new' });
+        mocks.useLatestAnalysis.mockReturnValue({
+            data: {
+                ...analyzedItem.analyses[0],
+                jobDescriptionId: analyzedItem.id,
+                responsibilities: ['Phát triển giao diện người dùng'],
+                requirements: [
+                    'Có 1 - 3 năm kinh nghiệm với React',
+                    'Hiểu về TypeScript',
+                ],
+                keywords: ['React'],
+                interviewFocus: ['Kiến trúc frontend'],
+                insights: [],
+                modelProvider: null,
+                modelName: null,
+                promptVersion: null,
+                createdAt: '2026-09-23T00:00:00.000Z',
+            },
+            isLoading: false,
+            isError: false,
+        });
     });
 
     it('renders the Vietnamese hero and actual statuses', () => {
@@ -87,8 +113,8 @@ describe('JobDescriptionManagementPage', () => {
         expect(
             screen.getByRole('link', { name: 'Mở Frontend Developer' }),
         ).toHaveAttribute('href', '/job-descriptions/jd-1');
-        expect(screen.getAllByText('Đã phân tích')).toHaveLength(3);
-        expect(screen.getAllByText('Chưa phân tích')).toHaveLength(3);
+        expect(screen.getAllByText('Đã phân tích')).toHaveLength(2);
+        expect(screen.getAllByText('Chưa phân tích')).toHaveLength(2);
         expect(
             screen.queryByRole('navigation', {
                 name: 'Phân trang mô tả công việc',
@@ -140,7 +166,7 @@ describe('JobDescriptionManagementPage', () => {
                 expect(mocks.useList).toHaveBeenLastCalledWith({
                     search: 'React',
                     page: 1,
-                    limit: 20,
+                    limit: 6,
                     status: 'ALL',
                     sort: 'RECENTLY_UPDATED',
                 }),
@@ -155,7 +181,7 @@ describe('JobDescriptionManagementPage', () => {
                     items: [analyzedItem],
                     pagination: {
                         page: 1,
-                        limit: 20,
+                        limit: 6,
                         total: 21,
                         totalPages: 2,
                     },
@@ -168,7 +194,7 @@ describe('JobDescriptionManagementPage', () => {
         expect(mocks.useList).toHaveBeenLastCalledWith({
             search: undefined,
             page: 2,
-            limit: 20,
+            limit: 6,
             status: 'ALL',
             sort: 'RECENTLY_UPDATED',
         });
@@ -183,7 +209,7 @@ describe('JobDescriptionManagementPage', () => {
         expect(mocks.useList).toHaveBeenLastCalledWith({
             search: undefined,
             page: 1,
-            limit: 20,
+            limit: 6,
             status: 'ANALYZED',
             sort: 'RECENTLY_UPDATED',
         });
@@ -202,6 +228,72 @@ describe('JobDescriptionManagementPage', () => {
         await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('jd-1'));
     });
 
+    it('opens Quick View with authoritative analysis data and actions', async () => {
+        render(<JobDescriptionManagementPage />);
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'Xem nhanh Frontend Developer',
+            }),
+        );
+
+        const quickView = screen.getByRole('dialog');
+        expect(
+            within(quickView).getByRole('heading', {
+                name: 'Xem nhanh mô tả công việc',
+            }),
+        ).toBeVisible();
+        expect(
+            within(quickView).getByText('Xây dựng giao diện web hiện đại.'),
+        ).toBeVisible();
+        expect(within(quickView).getByText('Junior')).toBeVisible();
+        expect(within(quickView).getByText('1 - 3 năm')).toBeVisible();
+        expect(
+            within(quickView).getByText('Hà Nội và Hồ Chí Minh'),
+        ).toBeVisible();
+
+        await userEvent.click(screen.getByRole('tab', { name: 'Yêu cầu' }));
+        expect(
+            within(quickView).getByText('Có 1 - 3 năm kinh nghiệm với React'),
+        ).toBeVisible();
+        expect(
+            within(quickView).getByText('Phát triển giao diện người dùng'),
+        ).toBeVisible();
+
+        expect(
+            screen.getByRole('link', { name: /Xem chi tiết/ }),
+        ).toHaveAttribute('href', '/job-descriptions/jd-1');
+        expect(screen.getByRole('link', { name: /Chỉnh sửa/ })).toHaveAttribute(
+            'href',
+            '/job-descriptions/jd-1?edit=1',
+        );
+    });
+
+    it('keeps Quick View useful when detailed analysis cannot be loaded', async () => {
+        mocks.useLatestAnalysis.mockReturnValue({
+            data: undefined,
+            isLoading: false,
+            isError: true,
+        });
+        render(<JobDescriptionManagementPage />);
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'Xem nhanh Frontend Developer',
+            }),
+        );
+
+        const quickView = screen.getByRole('dialog');
+        expect(
+            within(quickView).getByText(
+                /Chưa thể tải đầy đủ kết quả phân tích/,
+            ),
+        ).toBeVisible();
+        expect(
+            within(quickView).getByText('Xây dựng giao diện web hiện đại.'),
+        ).toBeVisible();
+    });
+
     it('renders loading, empty and error states', async () => {
         mocks.useList.mockReturnValue(
             state({ data: undefined, isPending: true }),
@@ -215,7 +307,7 @@ describe('JobDescriptionManagementPage', () => {
                     items: [],
                     pagination: {
                         page: 1,
-                        limit: 20,
+                        limit: 6,
                         total: 0,
                         totalPages: 0,
                     },

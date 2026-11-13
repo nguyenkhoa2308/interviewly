@@ -91,17 +91,20 @@ describe('CvManagementPage', () => {
         expect(screen.getByText('Dialog tải CV')).toBeVisible();
     });
 
-    it('does not render pagination for a single page', () => {
+    it('renders the page-size control without page navigation for one page', () => {
         render(<CvManagementPage />);
         expect(
-            screen.queryByRole('navigation', {
+            screen.getByRole('contentinfo', {
                 name: /Phân trang danh sách CV/,
             }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: /Trang 1/ }),
         ).not.toBeInTheDocument();
     });
 
-    it('paginates the filtered collection with eight CVs per page', async () => {
-        const items = Array.from({ length: 9 }, (_, index) => ({
+    it('paginates the filtered collection with nine CVs per page', async () => {
+        const items = Array.from({ length: 10 }, (_, index) => ({
             ...item,
             id: 'cv-' + (index + 1),
             name: 'CV ' + String(index + 1).padStart(2, '0'),
@@ -114,17 +117,17 @@ describe('CvManagementPage', () => {
             state({
                 data: {
                     items:
-                        params.page === 2 ? items.slice(8) : items.slice(0, 8),
+                        params.page === 2 ? items.slice(9) : items.slice(0, 9),
                     counts: {
-                        ALL: 9,
-                        READY: 9,
+                        ALL: 10,
+                        READY: 10,
                         PROCESSING: 0,
                         FAILED: 0,
                     },
                     pagination: {
                         page: params.page ?? 1,
-                        limit: 8,
-                        total: 9,
+                        limit: 9,
+                        total: 10,
                         totalPages: 2,
                     },
                 },
@@ -139,16 +142,14 @@ describe('CvManagementPage', () => {
             }),
         ).toBeVisible();
         expect(screen.getByText(/CV 01/)).toBeVisible();
-        expect(screen.queryByText(/CV 09/)).not.toBeInTheDocument();
+        expect(screen.getByText(/CV 09/)).toBeVisible();
+        expect(screen.queryByText(/CV 10/)).not.toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: /Sau/ }));
 
-        expect(screen.getByText(/CV 09/)).toBeVisible();
+        expect(screen.getByText(/CV 10/)).toBeVisible();
         expect(screen.queryByText(/CV 01/)).not.toBeInTheDocument();
         expect(screen.getByText('2/2')).toBeVisible();
-        expect(
-            screen.getByRole('button', { name: /Tải lên CV mới/ }),
-        ).toBeVisible();
     });
 
     it('renders a layout skeleton while loading', () => {
@@ -170,6 +171,15 @@ describe('CvManagementPage', () => {
         );
         render(<CvManagementPage />);
         expect(screen.getByText('Bạn chưa có CV nào')).toBeVisible();
+        expect(
+            screen.getByRole('img', {
+                name: 'Minh họa tải CV lên Interviewly',
+            }),
+        ).toHaveAttribute('src', expect.stringContaining('cv-empty-state.png'));
+        expect(
+            screen.getAllByRole('button', { name: 'Tải CV lên' }),
+        ).toHaveLength(2);
+        expect(screen.queryByText(/Hiển thị/)).not.toBeInTheDocument();
     });
 
     it('renders the decorative CV illustration without an accessible name', () => {
@@ -299,8 +309,24 @@ describe('CvManagementPage', () => {
             ).not.toBeInTheDocument();
         });
 
+        const searchInput = screen.getByRole('textbox', {
+            name: 'Tìm kiếm CV theo tên',
+        });
+        await userEvent.clear(searchInput);
+        await userEvent.type(searchInput, 'not-found');
+        await waitFor(() => {
+            expect(
+                screen.getByRole('heading', {
+                    name: 'Không tìm thấy CV phù hợp',
+                }),
+            ).toBeVisible();
+            expect(
+                screen.getByTestId('cv-no-results-illustration'),
+            ).toBeInTheDocument();
+        });
+
         await userEvent.click(
-            screen.getByRole('button', { name: /Tải lên CV mới/ }),
+            screen.getByRole('button', { name: /Tải CV lên/ }),
         );
         expect(screen.getByText('Dialog tải CV')).toBeVisible();
     });

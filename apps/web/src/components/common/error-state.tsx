@@ -1,5 +1,4 @@
-import { AlertCircle } from 'lucide-react';
-
+import { DataState } from '@/components/common/data-state';
 import { Button } from '@/components/ui/button';
 
 interface ErrorStateProps {
@@ -14,23 +13,18 @@ export function ErrorState({
     onRetry,
 }: ErrorStateProps) {
     return (
-        <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-center">
-            <div className="bg-destructive/10 flex size-12 items-center justify-center rounded-full">
-                <AlertCircle className="text-destructive size-5" />
-            </div>
-
-            <div className="space-y-1">
-                <h3 className="font-medium">{title}</h3>
-                <p className="text-muted-foreground max-w-sm text-sm">
-                    {description}
-                </p>
-            </div>
-
-            {onRetry && (
-                <Button variant="outline" onClick={onRetry}>
-                    Thử lại
-                </Button>
-            )}
-        </div>
+        <DataState
+            variant="error"
+            size="compact"
+            title={title}
+            description={description}
+            action={
+                onRetry ? (
+                    <Button variant="outline" onClick={onRetry}>
+                        Thử lại
+                    </Button>
+                ) : undefined
+            }
+        />
     );
 }

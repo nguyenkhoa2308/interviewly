@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { InterviewWizardStepper } from '@/components/interview/interview-wizard-stepper';
 import { Button } from '@/components/ui/button';
 import {
@@ -256,18 +257,18 @@ export function InterviewWizardPage() {
                     { label: 'Tạo buổi phỏng vấn' },
                 ]}
             />
-            <header className="mt-4">
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                    Tạo buổi phỏng vấn mới
-                </h1>
-                <p className="mt-2 text-sm font-medium text-slate-500 sm:text-base">
-                    {step === 1
+            <AppPageHeader
+                eyebrow="Tạo phỏng vấn"
+                title="Tạo buổi phỏng vấn mới"
+                description={
+                    step === 1
                         ? 'Thiết lập buổi phỏng vấn dựa trên CV, mô tả công việc và các tùy chọn của bạn.'
                         : step === 2
                           ? 'Chọn CV và mô tả công việc để AI cá nhân hóa kế hoạch.'
-                          : 'Xem lại cấu hình và nguồn dữ liệu trước khi tạo kế hoạch phỏng vấn.'}
-                </p>
-            </header>
+                          : 'Xem lại cấu hình và nguồn dữ liệu trước khi tạo kế hoạch phỏng vấn.'
+                }
+                className="mt-4"
+            />
             <InterviewWizardStepper current={step} />
 
             {options.isPending || (sourceId && sourceQuery.isPending) ? (

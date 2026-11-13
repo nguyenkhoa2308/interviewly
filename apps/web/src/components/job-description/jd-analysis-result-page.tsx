@@ -2,17 +2,31 @@
 
 import Link from 'next/link';
 import {
-    BrainCircuit, BriefcaseBusiness, CheckCircle2, Clock3,
-    FileText, Lightbulb, ListChecks, MessageSquareText, RefreshCw,
-    Sparkles, Star, Tag, Target,
+    BrainCircuit,
+    BriefcaseBusiness,
+    CheckCircle2,
+    Clock3,
+    FileText,
+    Lightbulb,
+    ListChecks,
+    MessageSquareText,
+    RefreshCw,
+    Sparkles,
+    Star,
+    Tag,
+    Target,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import {
-    useAnalyzeJobDescription, useJdAnalysisHistory, useJobDescription,
+    useAnalyzeJobDescription,
+    useJdAnalysisHistory,
+    useJobDescription,
     useLatestJdAnalysis,
 } from '@/hooks/job-description';
 import { ApiError } from '@/lib/api-error';
@@ -33,7 +47,8 @@ export function JdAnalysisResultPage({ id }: { id: string }) {
             await analyze.mutateAsync();
             toast.success('Đã cập nhật kết quả phân tích.');
         } catch (error) {
-            const conflict = error instanceof ApiError && error.statusCode === 409;
+            const conflict =
+                error instanceof ApiError && error.statusCode === 409;
             toast.error(
                 conflict ? 'JD đang được phân tích' : 'Phân tích lại thất bại',
                 {
@@ -84,7 +99,9 @@ export function JdAnalysisResultPage({ id }: { id: string }) {
 
             <div className="mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
                 <div className="space-y-5">
-                    {analysis.summary && <SummaryCard summary={analysis.summary} />}
+                    {analysis.summary && (
+                        <SummaryCard summary={analysis.summary} />
+                    )}
                     {(analysis.requiredSkills?.length ||
                         analysis.preferredSkills?.length) && (
                         <SkillsCard
@@ -145,53 +162,49 @@ function AnalysisHeader({
     onAnalyze: () => void;
 }) {
     return (
-        <header className="border-b border-slate-200 pb-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-3">
-                        <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
-                            <BrainCircuit className="size-5" aria-hidden="true" />
-                        </span>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                            Kết quả phân tích AI
-                        </h1>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <p className="text-lg font-extrabold text-slate-900 sm:text-xl">
-                            {title}
-                        </p>
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700">
-                            <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                            Đã phân tích
-                        </span>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-slate-500">
-                        {company && (
-                            <span className="inline-flex items-center gap-2">
-                                <BriefcaseBusiness className="size-4 text-slate-400" aria-hidden="true" />
-                                {company}
-                            </span>
-                        )}
-                        {analysis.completedAt && (
-                            <span className="inline-flex items-center gap-2">
-                                <Clock3 className="text-primary size-4" aria-hidden="true" />
-                                Phân tích {formatDate(analysis.completedAt)}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex w-full flex-wrap justify-end gap-2.5 lg:w-auto">
+        <div>
+            <AppPageHeader
+                eyebrow="Báo cáo AI"
+                title="Kết quả phân tích AI"
+                description={title}
+                actions={
                     <Button
-                        className="h-11 rounded-sm px-5 font-extrabold"
+                        className="h-12 !rounded-lg px-5 text-sm font-extrabold"
                         disabled={pending}
                         onClick={onAnalyze}
                     >
-                        <RefreshCw className={`size-4 ${pending ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                            className={`size-4 ${pending ? 'animate-spin' : ''}`}
+                        />
                         {pending ? 'Đang phân tích...' : 'Phân tích lại'}
                     </Button>
-                </div>
+                }
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700">
+                    <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                    Đã phân tích
+                </span>
+                {company && (
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
+                        <BriefcaseBusiness
+                            className="size-4 text-slate-400"
+                            aria-hidden="true"
+                        />
+                        {company}
+                    </span>
+                )}
+                {analysis.completedAt && (
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
+                        <Clock3
+                            className="text-primary size-4"
+                            aria-hidden="true"
+                        />
+                        Phân tích {formatDate(analysis.completedAt)}
+                    </span>
+                )}
             </div>
-        </header>
+        </div>
     );
 }
 
@@ -244,7 +257,9 @@ function RoleMetric({
             </span>
             <div className="min-w-0">
                 <p className="text-xs font-semibold text-slate-500">{label}</p>
-                <p className="mt-0.5 font-extrabold break-words text-slate-950">{value}</p>
+                <p className="mt-0.5 font-extrabold break-words text-slate-950">
+                    {value}
+                </p>
             </div>
         </div>
     );
@@ -301,9 +316,16 @@ function SkillGroup({
     separated?: boolean;
 }) {
     return (
-        <div className={separated ? 'mt-5 border-t border-slate-100 pt-5' : 'mt-5'}>
+        <div
+            className={
+                separated ? 'mt-5 border-t border-slate-100 pt-5' : 'mt-5'
+            }
+        >
             <p className="flex items-center gap-2 text-sm font-extrabold text-slate-700">
-                <span className={`size-2.5 rounded-full ${markerClass}`} aria-hidden="true" />
+                <span
+                    className={`size-2.5 rounded-full ${markerClass}`}
+                    aria-hidden="true"
+                />
                 {label}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -367,7 +389,10 @@ function InsightCard({ items }: { items: string[] | null }) {
                         key={item}
                         className="flex gap-3 text-sm leading-6 font-medium text-slate-600"
                     >
-                        <Sparkles className="text-primary mt-1.5 size-3.5 shrink-0" aria-hidden="true" />
+                        <Sparkles
+                            className="text-primary mt-1.5 size-3.5 shrink-0"
+                            aria-hidden="true"
+                        />
                         <span>{item}</span>
                     </li>
                 ))}
@@ -387,7 +412,10 @@ function KeywordCard({ items }: { items: string[] | null }) {
             />
             <div className="mt-4 flex flex-wrap gap-2">
                 {items.map((item) => (
-                    <span key={item} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700">
+                    <span
+                        key={item}
+                        className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"
+                    >
                         {item}
                     </span>
                 ))}
@@ -430,15 +458,26 @@ function HistoryCard({
                 description="Các lần phân tích được lưu độc lập."
             />
             {pending ? (
-                <div className="mt-4 space-y-2" aria-label="Đang tải lịch sử phân tích">
+                <div
+                    className="mt-4 space-y-2"
+                    aria-label="Đang tải lịch sử phân tích"
+                >
                     {[0, 1, 2].map((item) => (
-                        <div key={item} className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                        <div
+                            key={item}
+                            className="h-12 animate-pulse rounded-xl bg-slate-100"
+                        />
                     ))}
                 </div>
             ) : error ? (
                 <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
                     <p>Không thể tải lịch sử phân tích.</p>
-                    <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={onRetry}
+                    >
                         Thử lại
                     </Button>
                 </div>
@@ -461,28 +500,18 @@ function HistoryCard({
                             </div>
                         ))}
                     </div>
-                    {pagination && pagination.totalPages > 1 && (
-                        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page <= 1}
-                                onClick={() => onPageChange(page - 1)}
-                            >
-                                Trang trước
-                            </Button>
-                            <span className="text-sm font-bold text-slate-500">
-                                {page}/{pagination.totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page >= pagination.totalPages}
-                                onClick={() => onPageChange(page + 1)}
-                            >
-                                Trang sau
-                            </Button>
-                        </div>
+                    {pagination && (
+                        <ListPagination
+                            page={page}
+                            pageSize={pagination.limit}
+                            total={pagination.total}
+                            totalPages={pagination.totalPages}
+                            itemLabel="lần phân tích"
+                            compact
+                            pending={pending}
+                            onPageChange={onPageChange}
+                            className="mt-4 px-0"
+                        />
                     )}
                 </>
             )}
@@ -508,7 +537,9 @@ function AnalysisStatus({
               ? 'Thất bại'
               : 'Đang xử lý';
     return (
-        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${styles}`}>
+        <span
+            className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${styles}`}
+        >
             {label}
         </span>
     );
@@ -522,7 +553,9 @@ function Card({
     className?: string;
 }) {
     return (
-        <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-6 ${className}`}>
+        <section
+            className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-6 ${className}`}
+        >
             {children}
         </section>
     );
@@ -539,9 +572,14 @@ function SectionTitle({
 }) {
     return (
         <div className="flex min-w-0 items-start gap-3">
-            <Icon className="text-primary mt-0.5 size-5 shrink-0" aria-hidden="true" />
+            <Icon
+                className="text-primary mt-0.5 size-5 shrink-0"
+                aria-hidden="true"
+            />
             <div className="min-w-0">
-                <h2 className="text-lg font-extrabold text-slate-950">{title}</h2>
+                <h2 className="text-lg font-extrabold text-slate-950">
+                    {title}
+                </h2>
                 {description && (
                     <p className="mt-0.5 text-xs leading-5 font-medium text-slate-500">
                         {description}
@@ -591,12 +629,18 @@ function Empty({
             <span className="bg-primary/10 text-primary flex size-14 items-center justify-center rounded-2xl">
                 <BrainCircuit className="size-7" aria-hidden="true" />
             </span>
-            <h1 className="mt-4 text-2xl font-extrabold text-slate-950">{title}</h1>
+            <h1 className="mt-4 text-2xl font-extrabold text-slate-950">
+                {title}
+            </h1>
             <p className="mt-2 text-sm leading-6 font-medium text-slate-500">
                 Phân tích JD để xem vai trò, kỹ năng và trọng tâm phỏng vấn.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
-                <Button asChild variant="outline" className="h-11 rounded-sm px-5 font-extrabold">
+                <Button
+                    asChild
+                    variant="outline"
+                    className="h-11 rounded-sm px-5 font-extrabold"
+                >
                     <Link href={`/job-descriptions/${id}`}>Xem JD</Link>
                 </Button>
                 {action && (

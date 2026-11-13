@@ -19,7 +19,9 @@ import {
     getCvAnalysisErrorMessage,
 } from '@/components/cv/cv-analysis-section';
 import { Button } from '@/components/ui/button';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import {
     useAnalyzeCv,
     useCv,
@@ -157,39 +159,33 @@ function AnalysisResult({
 
     return (
         <div className="mt-4 min-w-0 space-y-6">
-            <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                    <p className="text-primary text-xs font-extrabold tracking-[0.16em] uppercase">
-                        Báo cáo AI
-                    </p>
-                    <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-950">
-                        Phân tích CV
-                    </h1>
-                    <p className="mt-1 text-sm font-semibold break-words text-slate-500">
-                        {cvName} · Hoàn thành {formatCvDate(analyzedAt)}
-                    </p>
-                </div>
-                <Button
-                    className="w-full rounded-sm font-semibold sm:w-auto"
-                    disabled={analyzing}
-                    onClick={onRequestAnalyzeAgain}
-                >
-                    {analyzing ? (
-                        <LoaderCircle
-                            className="size-4 animate-spin"
-                            aria-hidden="true"
-                            strokeWidth={2.5}
-                        />
-                    ) : (
-                        <RotateCcw
-                            className="size-4"
-                            aria-hidden="true"
-                            strokeWidth={2.5}
-                        />
-                    )}
-                    {analyzing ? 'Đang phân tích...' : 'Phân tích lại'}
-                </Button>
-            </header>
+            <AppPageHeader
+                eyebrow="Báo cáo AI"
+                title="Phân tích CV"
+                description={`${cvName} · Hoàn thành ${formatCvDate(analyzedAt)}`}
+                actions={
+                    <Button
+                        className="h-12 w-full !rounded-lg px-5 text-sm font-extrabold sm:w-auto"
+                        disabled={analyzing}
+                        onClick={onRequestAnalyzeAgain}
+                    >
+                        {analyzing ? (
+                            <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                            />
+                        ) : (
+                            <RotateCcw
+                                className="size-4"
+                                aria-hidden="true"
+                                strokeWidth={2.5}
+                            />
+                        )}
+                        {analyzing ? 'Đang phân tích...' : 'Phân tích lại'}
+                    </Button>
+                }
+            />
 
             {analyzing && (
                 <div
@@ -383,32 +379,16 @@ function AnalysisHistory({ cvId }: { cvId: string }) {
                             </div>
                         ))}
                     </div>
-                    {historyQuery.data.pagination.totalPages > 1 && (
-                        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page === 1}
-                                onClick={() => setPage((value) => value - 1)}
-                            >
-                                Trang trước
-                            </Button>
-                            <span className="text-sm font-bold text-slate-500">
-                                {page}/{historyQuery.data.pagination.totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    page ===
-                                    historyQuery.data.pagination.totalPages
-                                }
-                                onClick={() => setPage((value) => value + 1)}
-                            >
-                                Trang sau
-                            </Button>
-                        </div>
-                    )}
+                    <ListPagination
+                        page={page}
+                        pageSize={historyQuery.data.pagination.limit}
+                        total={historyQuery.data.pagination.total}
+                        totalPages={historyQuery.data.pagination.totalPages}
+                        itemLabel="lần phân tích"
+                        compact
+                        onPageChange={setPage}
+                        className="mt-5 px-0"
+                    />
                 </>
             )}
         </section>

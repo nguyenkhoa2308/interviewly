@@ -13,8 +13,6 @@ import {
     CalendarDays,
     CheckCircle2,
     Clock3,
-    ChevronLeft,
-    ChevronRight,
     FileText,
     Info,
     Lightbulb,
@@ -26,7 +24,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageBreadcrumb } from '@/components/common/page-breadcrumb';
+import { AppPageHeader } from '@/components/layout/app-page-header';
 import { Button } from '@/components/ui/button';
+import { ListPagination } from '@/components/ui/list-pagination';
 import {
     useCreateCvJdMatch,
     useCvJdMatch,
@@ -101,67 +101,66 @@ export function CvJdMatchResultPage({ id }: { id: string }) {
                     { label: 'Kết quả đối chiếu' },
                 ]}
             />
-            <header className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                    <div className="flex items-center gap-3">
-                        <span className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl">
-                            <FileText className="size-5" />
-                        </span>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                            Kết quả đối chiếu CV – JD
-                        </h1>
-                    </div>
-                    <p className="mt-2 text-slate-500">
-                        Phân tích mức độ phù hợp giữa CV và mô tả công việc bằng
-                        AI.
-                    </p>
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Source
-                            icon={FileText}
-                            title={match.cvNameSnapshot}
-                            detail={`Phiên bản ${match.cvVersionNumber}`}
-                        />
-                        <ArrowLeftRight className="text-primary mx-3 hidden size-5 shrink-0 sm:block" />
-                        <Source
-                            icon={FileText}
-                            title={match.jdTitleSnapshot}
-                            detail={
-                                match.jdCompanySnapshot ??
-                                'Không có tên công ty'
-                            }
-                        />
-                    </div>
-                </div>
-                <div className="flex flex-wrap gap-3 lg:justify-end">
-                    {match.status === 'COMPLETED' && (
-                        <Button asChild className="h-11 rounded-lg px-5 font-bold">
-                            <Link href={`/interviews/new?matchId=${match.id}`}>
-                                <CalendarDays className="size-4" />
-                                Tạo phỏng vấn
-                            </Link>
+            <AppPageHeader
+                eyebrow="Báo cáo đối chiếu"
+                title="Kết quả đối chiếu CV – JD"
+                description="Phân tích mức độ phù hợp giữa CV và mô tả công việc bằng AI."
+                className="mt-3"
+                actionsClassName="lg:justify-end"
+                actions={
+                    <>
+                        {match.status === 'COMPLETED' && (
+                            <Button
+                                asChild
+                                className="h-12 !rounded-lg px-5 text-sm font-extrabold"
+                            >
+                                <Link
+                                    href={`/interviews/new?matchId=${match.id}`}
+                                >
+                                    <CalendarDays className="size-4" />
+                                    Tạo phỏng vấn
+                                </Link>
+                            </Button>
+                        )}
+                        <Button
+                            variant="outline"
+                            className="h-12 !rounded-lg px-5 text-sm font-extrabold"
+                            disabled={create.isPending}
+                            onClick={rematch}
+                        >
+                            {create.isPending ? (
+                                <RefreshCw className="size-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="size-4" />
+                            )}
+                            {create.isPending
+                                ? 'Đang đối chiếu...'
+                                : 'Đối chiếu lại'}
                         </Button>
-                    )}
-                    <Button
-                    variant="outline"
-                    className="h-11 rounded-lg px-5 font-bold"
-                    disabled={create.isPending}
-                    onClick={rematch}
-                >
-                    {create.isPending ? (
-                        <RefreshCw className="size-4 animate-spin" />
-                    ) : (
-                        <Sparkles className="size-4" />
-                    )}
-                    {create.isPending ? 'Đang đối chiếu...' : 'Đối chiếu lại'}
-                    </Button>
-                </div>
-            </header>
+                    </>
+                }
+            />
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Source
+                    icon={FileText}
+                    title={match.cvNameSnapshot}
+                    detail={`Phiên bản ${match.cvVersionNumber}`}
+                />
+                <ArrowLeftRight className="text-primary mx-3 hidden size-5 shrink-0 sm:block" />
+                <Source
+                    icon={FileText}
+                    title={match.jdTitleSnapshot}
+                    detail={match.jdCompanySnapshot ?? 'Không có tên công ty'}
+                />
+            </div>
 
             {match.status === 'COMPLETED' ? (
                 <ResultGrid
                     match={match}
                     history={history.data?.items ?? []}
                     historyPage={historyPage}
+                    historyTotal={history.data?.pagination.total ?? 0}
+                    historyPageSize={history.data?.pagination.limit ?? 5}
                     historyTotalPages={history.data?.pagination.totalPages ?? 0}
                     historyPending={history.isFetching}
                     onHistoryPageChange={setHistoryPage}
@@ -177,6 +176,8 @@ function ResultGrid({
     match,
     history,
     historyPage,
+    historyTotal,
+    historyPageSize,
     historyTotalPages,
     historyPending,
     onHistoryPageChange,
@@ -184,6 +185,8 @@ function ResultGrid({
     match: CvJdMatch;
     history: CvJdMatchSummary[];
     historyPage: number;
+    historyTotal: number;
+    historyPageSize: number;
     historyTotalPages: number;
     historyPending: boolean;
     onHistoryPageChange: (page: number) => void;
@@ -453,6 +456,8 @@ function ResultGrid({
                     items={history}
                     currentId={match.id}
                     page={historyPage}
+                    total={historyTotal}
+                    pageSize={historyPageSize}
                     totalPages={historyTotalPages}
                     pending={historyPending}
                     onPageChange={onHistoryPageChange}
@@ -538,11 +543,7 @@ function Source({
         </div>
     );
 }
-function ScoreBreakdown({
-    breakdown,
-}: {
-    breakdown: MatchScoreBreakdown;
-}) {
+function ScoreBreakdown({ breakdown }: { breakdown: MatchScoreBreakdown }) {
     const rows = [
         ['Kỹ năng bắt buộc', breakdown.requiredSkills],
         ['Kỹ năng ưu tiên', breakdown.preferredSkills],
@@ -554,8 +555,7 @@ function ScoreBreakdown({
     return (
         <div className="mt-4 grid gap-x-5 gap-y-4 xl:grid-cols-2">
             {rows.map(([label, dimension]) => {
-                const percentage =
-                    (dimension.earned / dimension.maximum) * 100;
+                const percentage = (dimension.earned / dimension.maximum) * 100;
                 return (
                     <div key={label}>
                         <div className="mb-1.5 flex items-center justify-between gap-3">
@@ -752,6 +752,8 @@ function History({
     items,
     currentId,
     page,
+    total,
+    pageSize,
     totalPages,
     pending,
     onPageChange,
@@ -759,6 +761,8 @@ function History({
     items: CvJdMatchSummary[];
     currentId: string;
     page: number;
+    total: number;
+    pageSize: number;
     totalPages: number;
     pending: boolean;
     onPageChange: (page: number) => void;
@@ -815,33 +819,17 @@ function History({
                             </div>
                         ))}
                     </div>
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between border-t border-slate-100 bg-white px-3 py-2.5">
-                            <span className="text-xs font-semibold text-slate-500">
-                                Trang {page} / {totalPages}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    type="button"
-                                    aria-label="Trang lịch sử trước"
-                                    disabled={pending || page <= 1}
-                                    className="text-primary grid size-8 place-items-center rounded-lg border border-slate-200 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                    onClick={() => onPageChange(page - 1)}
-                                >
-                                    <ChevronLeft className="size-4" strokeWidth={2.5} />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Trang lịch sử tiếp theo"
-                                    disabled={pending || page >= totalPages}
-                                    className="text-primary grid size-8 place-items-center rounded-lg border border-slate-200 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                    onClick={() => onPageChange(page + 1)}
-                                >
-                                    <ChevronRight className="size-4" strokeWidth={2.5} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    <ListPagination
+                        page={page}
+                        pageSize={pageSize}
+                        total={total}
+                        totalPages={totalPages}
+                        itemLabel="lần đối chiếu"
+                        pending={pending}
+                        compact
+                        onPageChange={onPageChange}
+                        className="mt-0 bg-white"
+                    />
                 </div>
             ) : (
                 <p className="text-sm text-slate-500">

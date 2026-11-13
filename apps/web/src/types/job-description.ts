@@ -14,7 +14,14 @@ export interface JobDescriptionListItem {
     analyses: Array<
         Pick<
             JdAnalysis,
-            'id' | 'status' | 'detectedRole' | 'seniority' | 'completedAt'
+            | 'id'
+            | 'status'
+            | 'detectedRole'
+            | 'seniority'
+            | 'summary'
+            | 'requiredSkills'
+            | 'preferredSkills'
+            | 'completedAt'
         >
     >;
 }

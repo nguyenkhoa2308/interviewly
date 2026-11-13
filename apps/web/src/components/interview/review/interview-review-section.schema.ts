@@ -13,7 +13,7 @@ const assessmentStatus = z.enum([
     'INSUFFICIENT_EVIDENCE',
 ]);
 
-export const interviewReviewSectionSchema = z.discriminatedUnion('type', [
+const interviewReviewSectionSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('CRITERIA_ANALYSIS'),
         ...sectionMeta,
@@ -39,12 +39,20 @@ export const interviewReviewSectionSchema = z.discriminatedUnion('type', [
         ...sectionMeta,
         data: z.object({
             steps: z
-                .array(z.object({
-                    label: text(160),
-                    guidance: text(800),
-                    expectedContent: text(800).nullable().optional(),
-                    speakingTimeSeconds: z.number().int().min(5).max(600).nullable().optional(),
-                }))
+                .array(
+                    z.object({
+                        label: text(160),
+                        guidance: text(800),
+                        expectedContent: text(800).nullable().optional(),
+                        speakingTimeSeconds: z
+                            .number()
+                            .int()
+                            .min(5)
+                            .max(600)
+                            .nullable()
+                            .optional(),
+                    }),
+                )
                 .min(2)
                 .max(8),
         }),
@@ -80,10 +88,15 @@ export const interviewReviewSectionSchema = z.discriminatedUnion('type', [
                 .min(2)
                 .max(10),
             reasoning: text(1400).nullable().optional(),
-            alternatives: z.array(z.object({
-                option: text(180),
-                whenToUse: text(800),
-            })).max(5).optional(),
+            alternatives: z
+                .array(
+                    z.object({
+                        option: text(180),
+                        whenToUse: text(800),
+                    }),
+                )
+                .max(5)
+                .optional(),
             validation: text(1000).nullable(),
         }),
     }),
@@ -117,10 +130,9 @@ export const interviewReviewSectionSchema = z.discriminatedUnion('type', [
             missingParts: z
                 .array(z.enum(['SITUATION', 'TASK', 'ACTION', 'RESULT']))
                 .max(4),
-            contentSource: z.enum([
-                'CANDIDATE_EVIDENCE',
-                'GUIDANCE_PLACEHOLDER',
-            ]).optional(),
+            contentSource: z
+                .enum(['CANDIDATE_EVIDENCE', 'GUIDANCE_PLACEHOLDER'])
+                .optional(),
         }),
     }),
     z.object({
@@ -173,10 +185,6 @@ export const interviewReviewSectionSchema = z.discriminatedUnion('type', [
         }),
     }),
 ]);
-
-export const interviewReviewSectionsSchema = z
-    .array(interviewReviewSectionSchema)
-    .max(5);
 
 export function parseInterviewReviewSections(value: unknown) {
     if (!Array.isArray(value)) return [];
